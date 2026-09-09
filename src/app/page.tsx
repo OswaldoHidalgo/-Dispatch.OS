@@ -1,16 +1,15 @@
-// src/app/page.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 
 interface ApplicationRecord {
   id: string;
-  companyName: string;
-  jobTitle: string;
-  recipientEmail: string;
-  contactName: string;
-  sentAt: string;
-  templateType: string;
+  company_name: string;
+  job_title: string;
+  recipient_email: string;
+  contact_name?: string;
+  template_type?: string;
+  created_at: string;
   status: 'sent' | 'failed';
 }
 
@@ -29,7 +28,9 @@ export default function Dashboard() {
   const [history, setHistory] = useState<ApplicationRecord[]>([]);
   const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
+  // Spotlight mouse listener
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       setMousePos({ x: e.clientX, y: e.clientY });
@@ -38,15 +39,24 @@ export default function Dashboard() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('job_applications_history');
-    if (saved) {
-      try {
-        setHistory(JSON.parse(saved));
-      } catch (e) {
-        console.error('Error cargando historial:', e);
+  // Fetch application history from cloud database
+  const fetchHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const res = await fetch('/api/applications');
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.applications || []);
       }
+    } catch (err) {
+      console.error('Error fetching history:', err);
+    } finally {
+      setLoadingHistory(false);
     }
+  };
+
+  useEffect(() => {
+    fetchHistory();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -82,23 +92,12 @@ export default function Dashboard() {
       if (res.ok && data.success) {
         addLog('RESPUESTA SERVIDOR: 200 OK');
         addLog(`MESSAGE_ID: ${data.messageId}`);
+        addLog('PERSISTIENDO REGISTRO EN SUPABASE CLOUD DB...');
 
-        setStatusMessage({ type: 'success', text: `POSTULACION DESPACHADA: ${formData.companyName.toUpperCase()}` });
+        setStatusMessage({ type: 'success', text: `POSTULACION DESPACHADA Y REGISTRADA: ${formData.companyName.toUpperCase()}` });
 
-        const newRecord: ApplicationRecord = {
-          id: data.messageId || Date.now().toString(),
-          companyName: formData.companyName,
-          jobTitle: formData.jobTitle,
-          recipientEmail: formData.recipientEmail,
-          contactName: formData.contactName,
-          templateType: formData.templateType,
-          sentAt: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-          status: 'sent',
-        };
-
-        const updatedHistory = [newRecord, ...history];
-        setHistory(updatedHistory);
-        localStorage.setItem('job_applications_history', JSON.stringify(updatedHistory));
+        // Synchronize live cloud logs
+        await fetchHistory();
 
         setFormData({
           companyName: '',
@@ -119,17 +118,23 @@ export default function Dashboard() {
     }
   };
 
-  const clearHistory = () => {
-    if (confirm('¿Purgar registros de transmisión?')) {
-      localStorage.removeItem('job_applications_history');
-      setHistory([]);
+  const clearHistory = async () => {
+    if (confirm('¿Deseas purgar todos los registros almacenados en la base de datos cloud?')) {
+      try {
+        const res = await fetch('/api/applications', { method: 'DELETE' });
+        if (res.ok) {
+          setHistory([]);
+          addLog('REGISTROS EN SUPABASE PURGADOS CON ÉXITO.');
+        }
+      } catch (err) {
+        console.error('Error al purgar historial:', err);
+      }
     }
   };
 
   return (
-    <main className="min-h-screen bg-[#030305] text-neutral-100 font-sans selection:bg-cyan-500 selection:text-black relative overflow-hidden flex flex-col justify-between p-6 md:p-12">
-      
-      {/* Spotlight */}
+    <main className="min-h-screen bg-[#030305] text-neutral-100 font-sans selection:bg-cyan-500 selection:text-black relative overflow-hidden flex flex-col justify-between p-6 md:p-12 cursor-default">
+      {/* Interactive Cursor Spotlight */}
       <div
         className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300"
         style={{
@@ -137,7 +142,11 @@ export default function Dashboard() {
         }}
       />
 
-      {/* Grid Pattern */}
+      {/* Ambient Glows */}
+      <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse" />
+      <div className="absolute bottom-0 right-1/3 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none" />
+
+      {/* Futuristic Grid Pattern */}
       <div
         className="absolute inset-0 opacity-[0.025] pointer-events-none"
         style={{
@@ -147,7 +156,6 @@ export default function Dashboard() {
       />
 
       <div className="max-w-6xl mx-auto w-full space-y-10 relative z-10">
-        
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-6 gap-4">
           <div>
@@ -161,20 +169,18 @@ export default function Dashboard() {
               </h1>
             </div>
             <p className="text-[11px] font-mono text-neutral-500 uppercase tracking-widest mt-1">
-              Automated Outreach Protocol // Gmail Engine v1.0
+              Automated Outreach Protocol // Gmail + Supabase Engine
             </p>
           </div>
 
           <div className="flex items-center gap-3 font-mono text-xs text-neutral-400 bg-white/5 border border-white/10 px-4 py-2 rounded-full backdrop-blur-md">
-            <span className="text-neutral-500">OPERATOR:</span>
-            <span className="text-neutral-200 font-semibold">Oswaldo Hidalgo</span>
-            <span className="text-cyan-400 font-bold ml-1 animate-pulse">✓ ONLINE</span>
+            <span className="text-neutral-500">DATABASE:</span>
+            <span className="text-cyan-400 font-bold">SUPABASE CLOUD ✓</span>
           </div>
         </header>
 
         {/* Dashboard Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
           {/* Form */}
           <section className="lg:col-span-7 bg-neutral-900/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 md:p-8 shadow-2xl relative hover:border-cyan-500/30 transition-all duration-500">
             <div className="flex items-center justify-between mb-8">
@@ -322,7 +328,7 @@ export default function Dashboard() {
               <div className="flex items-center gap-2">
                 <div className="w-1 h-4 bg-indigo-500 rounded-full animate-pulse" />
                 <h2 className="text-xs font-mono font-bold tracking-widest text-neutral-200 uppercase">
-                  [02] Transmission Log ({history.length})
+                  [02] Supabase Cloud Log ({history.length})
                 </h2>
               </div>
               {history.length > 0 && (
@@ -336,10 +342,16 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {history.length === 0 ? (
+              {loadingHistory ? (
+                <div className="text-center py-20">
+                  <p className="text-xs font-mono text-cyan-400 animate-pulse">
+                    SYNCHRONIZING WITH SUPABASE DB...
+                  </p>
+                </div>
+              ) : history.length === 0 ? (
                 <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
                   <p className="text-xs font-mono text-neutral-600 uppercase tracking-widest">
-                    No Active Transmissions
+                    No Active Transmissions in DB
                   </p>
                 </div>
               ) : (
@@ -350,32 +362,31 @@ export default function Dashboard() {
                   >
                     <div className="flex justify-between items-start">
                       <span className="font-semibold text-white text-sm">
-                        {item.companyName}
+                        {item.company_name}
                       </span>
                       <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
                         DELIVERED
                       </span>
                     </div>
 
-                    <div className="text-xs text-neutral-300 font-mono">{item.jobTitle}</div>
+                    <div className="text-xs text-neutral-300 font-mono">{item.job_title}</div>
 
                     <div className="flex justify-between items-center text-[10px] font-mono text-neutral-500 pt-2 border-t border-white/5">
-                      <span className="truncate max-w-[180px]">{item.recipientEmail}</span>
-                      <span>{item.sentAt}</span>
+                      <span className="truncate max-w-[180px]">{item.recipient_email}</span>
+                      <span>{new Date(item.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
                 ))
               )}
             </div>
           </section>
-
         </div>
       </div>
 
       {/* Footer */}
       <footer className="max-w-6xl mx-auto w-full mt-12 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-neutral-600">
         <span>UX/UI SYSTEM // OSWALDO HIDALGO</span>
-        <span>LATENCY: OPTIMAL (GMAIL API v1)</span>
+        <span>DATABASE: SUPABASE POSTGRESQL (CLOUD SYNC)</span>
       </footer>
     </main>
   );
