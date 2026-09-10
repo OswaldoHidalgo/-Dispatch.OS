@@ -98,7 +98,7 @@ export default function Home() {
         setJobTitle(data.analysis.jobTitle);
         setTemplateType(data.analysis.templateType);
         setCompanyName('Empresa Externa Global');
-        setRecipientEmail('careers@target-company.com');
+        setRecipientEmail(targetUrl); // Mantiene la URL o email analizado
         setContactName(data.analysis.contactName);
         setStatusMessage(`Match de IA exitoso (${data.analysis.matchScore}% afín).`);
         setActiveTab('form');
@@ -173,6 +173,13 @@ export default function Home() {
   };
 
   const handleFollowUp = async (app: Application) => {
+    // Validamos que el registro posea un correo válido antes de intentar follow-up por email
+    const isEmail = app.recipient_email && app.recipient_email.includes('@') && !app.recipient_email.startsWith('http');
+    if (!isEmail) {
+      setStatusMessage(`No se puede enviar follow-up: ${app.company_name} usa un enlace web externo.`);
+      return;
+    }
+
     setStatusMessage(`Enviando follow-up a ${app.company_name}...`);
     try {
       const res = await fetch('/api/apply', {
@@ -195,6 +202,9 @@ export default function Home() {
       setStatusMessage('Error al enviar follow-up.');
     }
   };
+
+  // Validación inteligente para el formulario de la pestaña [02]
+  const isDestinationEmail = recipientEmail.includes('@') && !recipientEmail.startsWith('http');
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-3 sm:p-5 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black w-full overflow-x-hidden box-border">
@@ -338,9 +348,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* VISTA 2: FORMULARIO */}
+        {/* VISTA 2: FORMULARIO & CV (ADAPTATIVO CORREO VS ENLACE WEB) */}
         {activeTab === 'form' && (
-          <form onSubmit={handleDispatch} className="bg-[#111] border border-[#222] rounded-xl p-4 sm:p-5 space-y-4 shadow-xl">
+          <form onSubmit={isDestinationEmail ? handleDispatch : (e) => { e.preventDefault(); window.open(recipientEmail, '_blank'); }} className="bg-[#111] border border-[#222] rounded-xl p-4 sm:p-5 space-y-4 shadow-xl">
             <div className="text-xs font-bold text-[#00ffd5] mb-1">CONFIGURACIÓN DE ENVÍO & CV MAESTRO (1 PÁGINA)</div>
             
             <div>
@@ -380,9 +390,11 @@ export default function Home() {
             </div>
 
             <div>
-              <label className="block text-[10px] text-[#888] uppercase mb-1">Correo Destino *</label>
+              <label className="block text-[10px] text-[#888] uppercase mb-1">
+                {isDestinationEmail ? 'Correo Destino *' : 'Enlace de la Oferta / Plataforma *'}
+              </label>
               <input
-                type="email"
+                type="text"
                 required
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
@@ -411,12 +423,23 @@ export default function Home() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="w-full mt-3 bg-[#00ffd5] hover:bg-[#00cca8] text-black font-bold py-3.5 rounded-lg text-xs transition cursor-pointer text-center shadow-lg shadow-[#00ffd5]/10"
-            >
-              DESPACHAR CORREO + PDF ADJUNTO (1 PÁGINA) →
-            </button>
+            {isDestinationEmail ? (
+              <button
+                type="submit"
+                className="w-full mt-3 bg-[#00ffd5] hover:bg-[#00cca8] text-black font-bold py-3.5 rounded-lg text-xs transition cursor-pointer text-center shadow-lg shadow-[#00ffd5]/10"
+              >
+                DESPACHAR CORREO + PDF ADJUNTO (1 PÁGINA) →
+              </button>
+            ) : (
+              <a
+                href={recipientEmail.startsWith('http') ? recipientEmail : `https://${recipientEmail}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full mt-3 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3.5 rounded-lg text-xs transition cursor-pointer text-center shadow-lg shadow-emerald-500/10"
+              >
+                IR A POSTULARSE EN LA WEB EXTERNA →
+              </a>
+            )}
           </form>
         )}
 
@@ -439,26 +462,31 @@ export default function Home() {
                 No hay transmisiones registradas en Supabase.
               </div>
             ) : (
-              applications.map((app) => (
-                <div key={app.id} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 min-w-0">
-                  <div className="w-full sm:w-3/4 min-w-0">
-                    <div className="font-bold text-[#ededed] truncate">{app.company_name}</div>
-                    <div className="text-xs text-[#00ffd5] mt-0.5 break-words">{app.job_title}</div>
-                    <div className="text-[10px] text-[#777] mt-1 truncate">{app.recipient_email}</div>
+              applications.map((app) => {
+                const appIsEmail = app.recipient_email && app.recipient_email.includes('@') && !app.recipient_email.startsWith('http');
+                return (
+                  <div key={app.id} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 min-w-0">
+                    <div className="w-full sm:w-3/4 min-w-0">
+                      <div className="font-bold text-[#ededed] truncate">{app.company_name}</div>
+                      <div className="text-xs text-[#00ffd5] mt-0.5 break-words">{app.job_title}</div>
+                      <div className="text-[10px] text-[#777] mt-1 truncate">{app.recipient_email}</div>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
+                      <span className={`text-[9px] px-2.5 py-1 rounded-md font-bold border ${appIsEmail ? 'bg-[#0d1f1a] text-[#00ffd5] border-[#00ffd5]/20' : 'bg-zinc-900 text-zinc-400 border-zinc-700'}`}>
+                        {appIsEmail ? 'DELIVERED + PDF' : 'LINK EXTERNO'}
+                      </span>
+                      {appIsEmail && (
+                        <button
+                          onClick={() => handleFollowUp(app)}
+                          className="bg-[#222] hover:bg-[#333] text-[#00ffd5] border border-[#00ffd5]/30 text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                        >
+                          Follow-up ↺
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
-                    <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2.5 py-1 rounded-md font-bold border border-[#00ffd5]/20">
-                      DELIVERED + PDF
-                    </span>
-                    <button
-                      onClick={() => handleFollowUp(app)}
-                      className="bg-[#222] hover:bg-[#333] text-[#00ffd5] border border-[#00ffd5]/30 text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
-                    >
-                      Follow-up ↺
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
