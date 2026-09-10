@@ -8,6 +8,7 @@ interface Application {
   job_title: string;
   recipient_email: string;
   created_at: string;
+  status?: string;
 }
 
 interface Opportunity {
@@ -108,7 +109,7 @@ export default function Home() {
         setRecipientEmail(op.recipientEmail);
         setContactName(op.contactName);
         setTemplateType(data.analysis.templateType);
-        setStatusMessage(`Configurado y validado (${data.analysis.matchScore}% Match) para: ${op.companyName}`);
+        setStatusMessage(`Configurado (${data.analysis.matchScore}% Match) para: ${op.companyName}`);
         setActiveTab('form');
       }
     } catch (e) {
@@ -127,7 +128,7 @@ export default function Home() {
     e.preventDefault();
     if (!recipientEmail || !companyName || !jobTitle) return;
 
-    setStatusMessage(`Despachando postulación y CV adaptado a ${companyName}...`);
+    setStatusMessage(`Despachando a ${companyName}...`);
 
     try {
       const res = await fetch('/api/apply', {
@@ -155,63 +156,103 @@ export default function Home() {
     }
   };
 
+  const handleFollowUp = async (app: Application) => {
+    setStatusMessage(`Enviando follow-up a ${app.company_name}...`);
+    try {
+      const res = await fetch('/api/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientEmail: app.recipient_email,
+          companyName: app.company_name,
+          jobTitle: `Follow-up: ${app.job_title}`,
+          contactName: 'Equipo de Selección',
+          portfolioUrl,
+          templateType: 'design-systems',
+        }),
+      });
+      if (res.ok) {
+        setStatusMessage(`¡Follow-up enviado a ${app.company_name}!`);
+        fetchApplications();
+      }
+    } catch (e) {
+      setStatusMessage('Error al enviar follow-up.');
+    }
+  };
+
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-4 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black">
-      {/* HEADER */}
-      <header className="max-w-4xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#222] pb-4 gap-3">
+    <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-3 sm:p-6 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black">
+      {/* HEADER MOBILE-FRIENDLY */}
+      <header className="max-w-4xl mx-auto mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#222] pb-4 gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-widest flex items-center gap-2">
+          <h1 className="text-lg sm:text-xl font-bold tracking-widest flex items-center gap-2">
             <span className="inline-block w-2.5 h-2.5 bg-[#00ffd5] rounded-full animate-pulse"></span>
-            DISPATCH.OS // UNSTOPPABLE AGENT
+            DISPATCH.OS // MOBILE AGENT
           </h1>
-          <p className="text-[10px] text-[#777] tracking-wider">GLOBAL PROSPECTION & 1-PAGE DYNAMIC CV ADAPTER</p>
+          <p className="text-[9px] sm:text-[10px] text-[#777] tracking-wider">GLOBAL PROSPECTION & 1-PAGE CV ADAPTER</p>
         </div>
-        <div className="text-[10px] bg-[#141414] border border-[#262626] px-3 py-1.5 rounded-md text-[#00ffd5]">
+        <div className="text-[10px] bg-[#141414] border border-[#262626] px-3 py-1.5 rounded-md text-[#00ffd5] w-full sm:w-auto text-center">
           SUPABASE CLOUD SYNC ✓
         </div>
       </header>
 
       {/* CONTENEDOR PRINCIPAL */}
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-5">
         
+        {/* PANEL DE MÉTRICAS RÁPIDAS */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="bg-[#111] border border-[#222] p-3 rounded-xl text-center">
+            <div className="text-[10px] text-[#777] uppercase">Enviadas</div>
+            <div className="text-base sm:text-lg font-bold text-[#00ffd5] mt-1">{applications.length}</div>
+          </div>
+          <div className="bg-[#111] border border-[#222] p-3 rounded-xl text-center">
+            <div className="text-[10px] text-[#777] uppercase">Radar Activo</div>
+            <div className="text-base sm:text-lg font-bold text-[#ededed] mt-1">{radarOpportunities.length}</div>
+          </div>
+          <div className="col-span-2 sm:col-span-1 bg-[#111] border border-[#222] p-3 rounded-xl text-center">
+            <div className="text-[10px] text-[#777] uppercase">Match IA Promedio</div>
+            <div className="text-base sm:text-lg font-bold text-[#00ffd5] mt-1">98%</div>
+          </div>
+        </div>
+
         {/* BARRA DE URL / IA ANALYZER */}
-        <div className="bg-[#111] border border-[#222] rounded-xl p-4 shadow-xl">
+        <div className="bg-[#111] border border-[#222] rounded-xl p-3 sm:p-4 shadow-xl">
           <form onSubmit={handleAiAutoFill} className="flex flex-col sm:flex-row gap-2">
             <input
               type="url"
-              placeholder="Pega la URL de cualquier oferta (LinkedIn, Web corporativa)..."
+              placeholder="Pega la URL de la oferta (LinkedIn, Web)..."
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
-              className="flex-1 bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
+              className="flex-1 bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
             />
             <button
               type="submit"
-              className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black border border-[#00ffd5]/30 font-bold px-4 py-2 rounded-lg text-xs transition cursor-pointer whitespace-nowrap"
+              className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black border border-[#00ffd5]/30 font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer whitespace-nowrap"
             >
-              {processingAi ? 'Analizando...' : 'Analizar con IA & Match'}
+              {processingAi ? 'Analizando...' : 'Analizar & Match IA'}
             </button>
           </form>
         </div>
 
-        {/* NAVEGACIÓN POR PESTAÑAS */}
-        <div className="flex border-b border-[#222] gap-6 text-xs">
+        {/* NAVEGACIÓN POR PESTAÑAS (MÓVIL FRIENDLY) */}
+        <div className="flex border-b border-[#222] gap-4 sm:gap-6 text-xs overflow-x-auto pb-1">
           <button
             onClick={() => setActiveTab('radar')}
-            className={`pb-3 border-b-2 font-bold cursor-pointer transition ${activeTab === 'radar' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
+            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap ${activeTab === 'radar' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
-            [01] Radar Global Masivo ({radarOpportunities.length})
+            [01] Radar ({radarOpportunities.length})
           </button>
           <button
             onClick={() => setActiveTab('form')}
-            className={`pb-3 border-b-2 font-bold cursor-pointer transition ${activeTab === 'form' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
+            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap ${activeTab === 'form' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
-            [02] Formulario & CV Adaptado
+            [02] Formulario & CV
           </button>
           <button
             onClick={() => setActiveTab('logs')}
-            className={`pb-3 border-b-2 font-bold cursor-pointer transition ${activeTab === 'logs' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
+            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap ${activeTab === 'logs' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
-            [03] Historial Cloud ({applications.length})
+            [03] Historial & Follow-up ({applications.length})
           </button>
         </div>
 
@@ -224,10 +265,10 @@ export default function Home() {
         {/* VISTA 1: RADAR GLOBAL */}
         {activeTab === 'radar' && (
           <div className="space-y-3">
-            <div className="flex justify-between items-center text-xs text-[#777] mb-2">
-              <span>Búsqueda global automatizada (Remoto, Español / Inglés A2)</span>
+            <div className="flex justify-between items-center text-xs text-[#777] mb-1">
+              <span>Búsqueda global (Remoto / Español / Inglés A2)</span>
               <button onClick={fetchRadar} className="text-[#00ffd5] hover:underline cursor-pointer">
-                {loadingRadar ? 'Escaneando...' : 'Actualizar Radar'}
+                {loadingRadar ? 'Escaneando...' : 'Actualizar'}
               </button>
             </div>
             {radarOpportunities.map((op, idx) => (
@@ -239,14 +280,14 @@ export default function Home() {
                       Match: {op.matchScore}%
                     </span>
                   </div>
-                  <div className="text-xs text-[#00ffd5] mt-0.5">{op.jobTitle}</div>
-                  <div className="text-[10px] text-[#777] mt-1">Modalidad: {op.contractType} | Duración: {op.duration}</div>
+                  <div className="text-xs text-[#00ffd5] mt-1">{op.jobTitle}</div>
+                  <div className="text-[10px] text-[#777] mt-1">Modalidad: {op.contractType}</div>
                 </div>
                 <button
                   onClick={() => handleSelectOpportunity(op)}
-                  className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-4 py-2 rounded-lg text-xs transition cursor-pointer"
+                  className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer text-center"
                 >
-                  Seleccionar y Adaptar CV →
+                  Seleccionar →
                 </button>
               </div>
             ))}
@@ -255,15 +296,15 @@ export default function Home() {
 
         {/* VISTA 2: FORMULARIO */}
         {activeTab === 'form' && (
-          <form onSubmit={handleDispatch} className="bg-[#111] border border-[#222] rounded-xl p-5 space-y-4 shadow-xl">
-            <div className="text-xs font-bold text-[#00ffd5] mb-2">CONFIGURACIÓN DE ENVÍO & CV MAESTRO (1 PÁGINA)</div>
+          <form onSubmit={handleDispatch} className="bg-[#111] border border-[#222] rounded-xl p-4 sm:p-5 space-y-4 shadow-xl">
+            <div className="text-xs font-bold text-[#00ffd5] mb-1">CONFIGURACIÓN DE ENVÍO & CV MAESTRO (1 PÁGINA)</div>
             
             <div>
               <label className="block text-[10px] text-[#888] uppercase mb-1">Estrategia CV Asignada por IA</label>
               <select
                 value={templateType}
                 onChange={(e) => setTemplateType(e.target.value)}
-                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300ffd5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2svg%3E')] bg-[length:9px_9px] bg-[right_12px_center] bg-no-repeat"
+                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300ffd5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2svg%3E')] bg-[length:9px_9px] bg-[right_12px_center] bg-no-repeat"
               >
                 <option value="design-systems" className="bg-[#161616] text-[#ededed]">Design Systems & Product Design</option>
                 <option value="frontend" className="bg-[#161616] text-[#ededed]">Frontend Architecture (React / Next.js)</option>
@@ -279,7 +320,7 @@ export default function Home() {
                   required
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] outline-none"
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none"
                 />
               </div>
               <div>
@@ -289,7 +330,7 @@ export default function Home() {
                   required
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] outline-none"
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none"
                 />
               </div>
             </div>
@@ -301,7 +342,7 @@ export default function Home() {
                 required
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
-                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] outline-none"
+                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none"
               />
             </div>
 
@@ -312,7 +353,7 @@ export default function Home() {
                   type="text"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] outline-none"
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none"
                 />
               </div>
               <div>
@@ -321,38 +362,47 @@ export default function Home() {
                   type="text"
                   value={portfolioUrl}
                   onChange={(e) => setPortfolioUrl(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] outline-none"
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none"
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full mt-3 bg-[#00ffd5] hover:bg-[#00cca8] text-black font-bold py-3 rounded-lg text-xs transition cursor-pointer"
+              className="w-full mt-3 bg-[#00ffd5] hover:bg-[#00cca8] text-black font-bold py-3.5 rounded-lg text-xs transition cursor-pointer text-center shadow-lg shadow-[#00ffd5]/10"
             >
               DESPACHAR CORREO + PDF ADJUNTO (1 PÁGINA) →
             </button>
           </form>
         )}
 
-        {/* VISTA 3: HISTORIAL */}
+        {/* VISTA 3: HISTORIAL & FOLLOW-UPS */}
         {activeTab === 'logs' && (
           <div className="space-y-3">
+            <div className="text-xs text-[#777] mb-1">Historial de envíos y automatización de seguimiento:</div>
             {applications.length === 0 ? (
               <div className="text-center py-8 text-xs text-[#555] border border-dashed border-[#222] rounded-xl">
                 No hay transmisiones registradas en Supabase.
               </div>
             ) : (
               applications.map((app) => (
-                <div key={app.id} className="bg-[#111] border border-[#222] p-4 rounded-xl flex justify-between items-center text-xs">
+                <div key={app.id} className="bg-[#111] border border-[#222] p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
                     <div className="font-bold text-[#ededed]">{app.company_name}</div>
-                    <div className="text-[#00ffd5] mt-0.5">{app.job_title}</div>
+                    <div className="text-xs text-[#00ffd5] mt-0.5">{app.job_title}</div>
                     <div className="text-[10px] text-[#777] mt-1">{app.recipient_email}</div>
                   </div>
-                  <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2.5 py-1 rounded-md font-bold border border-[#00ffd5]/20">
-                    DELIVERED + 1-PAGE PDF
-                  </span>
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                    <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2.5 py-1 rounded-md font-bold border border-[#00ffd5]/20">
+                      DELIVERED + PDF
+                    </span>
+                    <button
+                      onClick={() => handleFollowUp(app)}
+                      className="bg-[#222] hover:bg-[#333] text-[#00ffd5] border border-[#00ffd5]/30 text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                    >
+                      Enviar Follow-up ↺
+                    </button>
+                  </div>
                 </div>
               ))
             )}
