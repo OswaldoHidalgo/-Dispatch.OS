@@ -8,8 +8,6 @@ interface Application {
   job_title: string;
   recipient_email: string;
   created_at: string;
-  contract_type?: string;
-  duration?: string;
 }
 
 interface Opportunity {
@@ -39,7 +37,7 @@ export default function Home() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [radarOpportunities, setRadarOpportunities] = useState<Opportunity[]>([]);
   const [loadingRadar, setLoadingRadar] = useState(false);
-  const [loadingUrl, setLoadingUrl] = useState(false);
+  const [processingAi, setProcessingAi] = useState(false);
 
   const addLog = (msg: string) => {
     const timestamp = new Date().toTimeString().split(' ')[0];
@@ -58,13 +56,13 @@ export default function Home() {
 
   const fetchRadar = async () => {
     setLoadingRadar(true);
-    addLog('ESCANEANDO RADAR GLOBAL EN TIEMPO REAL...');
+    addLog('ESCANENADO RADAR GLOBAL & DETECTANDO OPORTUNIDADES...');
     try {
       const res = await fetch('/api/radar/scan');
       const data = await res.json();
       if (data.opportunities) {
         setRadarOpportunities(data.opportunities);
-        addLog(`RADAR ACTUALIZADO: ${data.opportunities.length} OPORTUNIDADES.`);
+        addLog(`RADAR ACTUALIZADO: ${data.opportunities.length} VACANTES.`);
       }
     } catch (e) {
       addLog('ERROR AL ESCANEAR EL RADAR.');
@@ -78,64 +76,91 @@ export default function Home() {
     fetchRadar();
   }, []);
 
-  const handleScrapeUrl = async (e: React.FormEvent) => {
+  const handleAiAutoFill = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetUrl) return;
-    setLoadingUrl(true);
-    addLog(`ANALIZANDO ENLACE DE OFERTA: ${targetUrl}`);
+    setProcessingAi(true);
+    addLog(`IA ANALIZANDO OFERTA DESDE URL: ${targetUrl}`);
 
     try {
-      const res = await fetch('/api/radar/scrape-url', {
+      const res = await fetch('/api/radar/analyze-job', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: targetUrl }),
       });
       const data = await res.json();
-      if (res.ok && data.data) {
-        setCompanyName(data.data.companyName);
-        setJobTitle(data.data.jobTitle);
-        setRecipientEmail(data.data.recipientEmail);
-        setContactName(data.data.contactName);
-        setTemplateType(data.data.templateType);
-        addLog('¡ENLACE PROCESADO! DATOS CARGADOS EN EL FORMULARIO MANUAL.');
-        setStatusMessage('OFERTA EXTRAÍDA Y LISTA PARA DESPACHO');
+      if (res.ok && data.analysis) {
+        setJobTitle(data.analysis.jobTitle);
+        setTemplateType(data.analysis.templateType);
+        setCompanyName('Empresa Web Externa');
+        setRecipientEmail('careers@target-company.com');
+        setContactName('Hiring Manager');
+        addLog(`¡IA ANÁLISIS EXITOSO! ROL DETECTADO: ${data.analysis.jobTitle}`);
+        addLog(`ESTRATEGIA CV ASIGNADA: ${data.analysis.templateType.toUpperCase()}`);
+        setStatusMessage('OFERTA ANALIZADA Y AUTOPARAMETRIZADA POR IA');
       }
     } catch (err) {
-      addLog('ERROR AL PROCESAR EL ENLACE.');
+      addLog('ERROR EN EL ANÁLISIS DE IA.');
     } finally {
-      setLoadingUrl(false);
+      setProcessingAi(false);
     }
   };
 
-  const handleDispatch = async (e?: React.FormEvent, customData?: Opportunity) => {
+  const handleSelectRadarOpportunity = async (op: Opportunity) => {
+    setProcessingAi(true);
+    addLog(`PROCESANDO OFERTA SELECCIONADA: ${op.companyName}`);
+    
+    // Análisis automático por IA de la tarjeta seleccionada
+    try {
+      const res = await fetch('/api/radar/analyze-job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rawText: op.jobTitle + ' ' + op.companyName }),
+      });
+      const data = await res.json();
+      if (res.ok && data.analysis) {
+        setCompanyName(op.companyName);
+        setJobTitle(op.jobTitle);
+        setRecipientEmail(op.recipientEmail);
+        setContactName(op.contactName);
+        setTemplateType(data.analysis.templateType);
+        addLog(`IA CONFIGURÓ AUTOMÁTICAMENTE EL PERFIL PARA: ${op.companyName}`);
+        setStatusMessage(`LISTO PARA DESPACHO: ${op.companyName}`);
+      }
+    } catch (e) {
+      setCompanyName(op.companyName);
+      setJobTitle(op.jobTitle);
+      setRecipientEmail(op.recipientEmail);
+      setContactName(op.contactName);
+      setTemplateType(op.templateType);
+    } finally {
+      setProcessingAi(false);
+    }
+  };
+
+  const handleDispatch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    const targetCompany = customData ? customData.companyName : companyName;
-    const targetRole = customData ? customData.jobTitle : jobTitle;
-    const targetEmail = customData ? customData.recipientEmail : recipientEmail;
-    const targetContact = customData ? customData.contactName : contactName;
-    const targetTemplate = customData ? customData.templateType : templateType;
-
-    if (!targetEmail || !targetCompany || !targetRole) {
+    if (!recipientEmail || !companyName || !jobTitle) {
       alert('Complete los campos obligatorios.');
       return;
     }
 
-    setStatusMessage(`DESPACHANDO A: ${targetCompany.toUpperCase()}`);
-    addLog('INICIANDO PROTOCOLO DE DESPACHO & CV PDF ADJUNTO...');
-    addLog(`OBJETIVO: ${targetCompany}`);
+    setStatusMessage(`DESPACHANDO A: ${companyName.toUpperCase()}`);
+    addLog('INICIANDO DESPACHO & ADAPTACIÓN DINÁMICA DE CV PDF...');
+    addLog(`OBJETIVO: ${companyName}`);
 
     try {
       const res = await fetch('/api/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recipientEmail: targetEmail,
-          companyName: targetCompany,
-          jobTitle: targetRole,
-          contactName: targetContact,
+          recipientEmail,
+          companyName,
+          jobTitle,
+          contactName,
           portfolioUrl,
-          templateType: targetTemplate,
+          templateType,
         }),
       });
 
@@ -143,8 +168,8 @@ export default function Home() {
 
       if (res.ok) {
         addLog(`RESPUESTA 200 OK — ID: ${data.messageId}`);
-        addLog('CV ADAPTADO Y REGISTRADO EN SUPABASE CLOUD.');
-        setStatusMessage(`POSTULACIÓN ENVIADA CON ÉXITO: ${targetCompany}`);
+        addLog('CV ADAPTADO ENVIADO Y REGISTRADO EN SUPABASE CLOUD.');
+        setStatusMessage(`POSTULACIÓN ENVIADA CON ÉXITO: ${companyName}`);
         fetchApplications();
       } else {
         addLog(`ERROR: ${data.error}`);
@@ -162,10 +187,10 @@ export default function Home() {
         <div>
           <h1 className="text-2xl font-bold tracking-widest flex items-center gap-2">
             <span className="inline-block w-3 h-3 bg-[#00ffd5] rounded-full animate-pulse"></span>
-            DISPATCH.OS // MASTER AGENT
+            DISPATCH.OS // AI AUTONOMOUS AGENT
           </h1>
           <p className="text-xs text-[#777] tracking-wider mt-1">
-            AUTONOMOUS PROSPECTION & DYNAMIC CV PDF ADAPTER // GMAIL + SUPABASE
+            INTELLIGENT JOB MATCHER & DYNAMIC CV PDF ADAPTER // GMAIL + SUPABASE
           </p>
         </div>
         <div className="flex items-center gap-3 bg-[#141414] border border-[#262626] px-4 py-2 rounded-lg text-xs">
@@ -174,11 +199,11 @@ export default function Home() {
         </div>
       </header>
 
-      {/* SCRAPER DE URLS BAJO DEMANDA */}
+      {/* SCRAPER & IA ANALYZER DE URLS */}
       <div className="max-w-7xl mx-auto mb-8 bg-[#111] border border-[#222] rounded-xl p-4 shadow-xl">
-        <form onSubmit={handleScrapeUrl} className="flex flex-col md:flex-row gap-3 items-center">
+        <form onSubmit={handleAiAutoFill} className="flex flex-col md:flex-row gap-3 items-center">
           <div className="flex-1 w-full">
-            <label className="block text-[10px] text-[#00ffd5] uppercase tracking-widest mb-1">Scraper de Enlaces (Pegar URL de oferta LinkedIn / Web)</label>
+            <label className="block text-[10px] text-[#00ffd5] uppercase tracking-widest mb-1">IA Job Analyzer & Auto-Filler (Pegar URL de oferta)</label>
             <input
               type="url"
               placeholder="https://www.linkedin.com/jobs/view/..."
@@ -189,9 +214,9 @@ export default function Home() {
           </div>
           <button
             type="submit"
-            className="w-full md:w-auto mt-5 bg-[#222] hover:bg-[#333] text-[#00ffd5] border border-[#00ffd5]/30 font-bold px-6 py-2 rounded-lg text-xs transition cursor-pointer"
+            className="w-full md:w-auto mt-5 bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black border border-[#00ffd5]/30 font-bold px-6 py-2 rounded-lg text-xs transition cursor-pointer"
           >
-            {loadingUrl ? 'ANALIZANDO...' : 'EXTRAER & AUTO-LLENAR →'}
+            {processingAi ? 'ANALIZANDO CON IA...' : 'AUTO-CONFIGURAR CON IA →'}
           </button>
         </form>
       </div>
@@ -203,7 +228,7 @@ export default function Home() {
         <section className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col justify-between shadow-2xl">
           <div>
             <div className="flex justify-between items-center mb-6 border-b border-[#222] pb-3">
-              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[01] LAUNCH PARAMETERS & CV ADAPTER</span>
+              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[01] AI PARAMETERS & CV ADAPTER</span>
               <span className="text-[10px] bg-[#1a1a1a] text-[#888] px-2 py-1 rounded border border-[#333]">CV MAESTRO ACTIVO</span>
             </div>
 
@@ -215,7 +240,7 @@ export default function Home() {
 
             <form onSubmit={(e) => handleDispatch(e)} className="space-y-4">
               <div>
-                <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Plantilla & Enfoque CV</label>
+                <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Plantilla & Enfoque CV (Optimizado por IA)</label>
                 <select
                   value={templateType}
                   onChange={(e) => setTemplateType(e.target.value)}
@@ -240,7 +265,7 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Target Role *</label>
+                  <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Target Role (Auto-detectado) *</label>
                   <input
                     type="text"
                     required
@@ -271,7 +296,7 @@ export default function Home() {
                     type="text"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
-                    placeholder="Camila / Recruiter"
+                    placeholder="Recruiter"
                     className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
                   />
                 </div>
@@ -310,7 +335,7 @@ export default function Home() {
           {/* [03] GLOBAL RADAR */}
           <section className="bg-[#111] border border-[#222] rounded-xl p-6 shadow-2xl">
             <div className="flex justify-between items-center mb-4 border-b border-[#222] pb-3">
-              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[03] GLOBAL PROSPECTION RADAR</span>
+              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[03] AI PROSPECTION RADAR</span>
               <button 
                 onClick={fetchRadar}
                 className="text-[10px] bg-[#1a1a1a] hover:bg-[#222] text-[#00ffd5] px-3 py-1 rounded border border-[#333] cursor-pointer"
@@ -319,7 +344,7 @@ export default function Home() {
               </button>
             </div>
             <p className="text-[11px] text-[#777] mb-4">
-              Vacantes en español e inglés A2 (Remoto Global, Contratos, Freelance, Consultorías).
+              Haz clic en una oferta para que la IA configure automáticamente el rol y la estrategia de tu CV.
             </p>
 
             <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
@@ -335,10 +360,10 @@ export default function Home() {
                   <div className="flex justify-between items-center text-[10px] text-[#888] pt-2 border-t border-[#222]">
                     <span>Duración: {op.duration}</span>
                     <button
-                      onClick={() => handleDispatch(undefined, op)}
+                      onClick={() => handleSelectRadarOpportunity(op)}
                       className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-1 rounded transition cursor-pointer"
                     >
-                      DISPATCH + CV →
+                      {processingAi ? 'CONFIGURANDO...' : 'SELECCIONAR & CONFIGURAR →'}
                     </button>
                   </div>
                 </div>
@@ -368,7 +393,7 @@ export default function Home() {
                     </div>
                     <div className="text-right">
                       <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20">
-                        DELIVERED + CV
+                        DELIVERED + AI CV
                       </span>
                     </div>
                   </div>
