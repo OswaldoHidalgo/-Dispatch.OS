@@ -28,12 +28,11 @@ export default function Home() {
   const [jobTitle, setJobTitle] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [contactName, setContactName] = useState('');
-  // Portafolio actualizado con tu enlace de Behance
   const [portfolioUrl, setPortfolioUrl] = useState('https://www.behance.net/oswaldohidalgo');
   const [targetUrl, setTargetUrl] = useState('');
   
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [applications, setApplications] = useState<Application[]>([]);
+  const [applications, setApplications]  = useState<Application[]>([]);
   const [radarOpportunities, setRadarOpportunities] = useState<Opportunity[]>([]);
   const [loadingRadar, setLoadingRadar] = useState(false);
   const [processingAi, setProcessingAi] = useState(false);
@@ -67,10 +66,19 @@ export default function Home() {
     fetchRadar();
   }, []);
 
-  // Función para limpiar el historial localmente o via backend si posees la ruta
-  const handleClearHistory = () => {
-    setApplications([]);
-    setStatusMessage('Historial de enviados limpiado con éxito.');
+  // Borrado persistente real en Supabase mediante backend
+  const handleClearHistory = async () => {
+    try {
+      const res = await fetch('/api/applications', { method: 'DELETE' });
+      if (res.ok) {
+        setApplications([]);
+        setStatusMessage('Historial de enviados limpiado correctamente de la base de datos.');
+      } else {
+        setStatusMessage('Error al limpiar el historial en el servidor.');
+      }
+    } catch (e) {
+      setStatusMessage('Error de conexión al limpiar historial.');
+    }
   };
 
   const handleAiAutoFill = async (e: React.FormEvent) => {
@@ -91,7 +99,7 @@ export default function Home() {
         setCompanyName('Empresa Externa Global');
         setRecipientEmail('careers@target-company.com');
         setContactName(data.analysis.contactName);
-        setStatusMessage(`¡Match de IA exitoso (${data.analysis.matchScore}% afín)!`);
+        setStatusMessage(`Match de IA exitoso (${data.analysis.matchScore}% afín).`);
         setActiveTab('form');
       }
     } catch (err) {
@@ -152,7 +160,7 @@ export default function Home() {
       });
 
       if (res.ok) {
-        setStatusMessage(`¡Enviado con éxito a ${companyName}! CV adjunto entregado.`);
+        setStatusMessage(`Enviado con éxito a ${companyName}. CV adjunto entregado.`);
         fetchApplications();
         setActiveTab('logs');
       } else {
@@ -179,7 +187,7 @@ export default function Home() {
         }),
       });
       if (res.ok) {
-        setStatusMessage(`¡Follow-up enviado a ${app.company_name}!`);
+        setStatusMessage(`Follow-up enviado a ${app.company_name}.`);
         fetchApplications();
       }
     } catch (e) {
@@ -188,92 +196,93 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-3 sm:p-6 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black">
-      {/* HEADER MOBILE-FRIENDLY */}
-      <header className="max-w-4xl mx-auto mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#222] pb-4 gap-3">
+    <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-3 sm:p-5 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black overflow-x-hidden">
+      
+      {/* HEADER RESPONSIVE */}
+      <header className="max-w-4xl mx-auto mb-5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-[#222] pb-4 gap-3">
         <div>
-          <h1 className="text-lg sm:text-xl font-bold tracking-widest flex items-center gap-2">
-            <span className="inline-block w-2.5 h-2.5 bg-[#00ffd5] rounded-full animate-pulse"></span>
+          <h1 className="text-base sm:text-xl font-bold tracking-widest flex items-center gap-2 break-all">
+            <span className="inline-block w-2.5 h-2.5 bg-[#00ffd5] rounded-full animate-pulse shrink-0"></span>
             DISPATCH.OS // MOBILE AGENT
           </h1>
-          <p className="text-[9px] sm:text-[10px] text-[#777] tracking-wider">GLOBAL PROSPECTION & 1-PAGE CV ADAPTER</p>
+          <p className="text-[9px] sm:text-[10px] text-[#777] tracking-wider mt-0.5">GLOBAL PROSPECTION & 1-PAGE CV ADAPTER</p>
         </div>
-        <div className="text-[10px] bg-[#141414] border border-[#262626] px-3 py-1.5 rounded-md text-[#00ffd5] w-full sm:w-auto text-center">
+        <div className="text-[10px] bg-[#141414] border border-[#262626] px-3 py-2 sm:py-1.5 rounded-md text-[#00ffd5] text-center shrink-0">
           SUPABASE CLOUD SYNC ✓
         </div>
       </header>
 
       {/* CONTENEDOR PRINCIPAL */}
-      <div className="max-w-4xl mx-auto space-y-5">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5">
         
-        {/* PANEL DE MÉTRICAS RÁPIDAS */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="bg-[#111] border border-[#222] p-3 rounded-xl text-center">
-            <div className="text-[10px] text-[#777] uppercase">Enviadas</div>
-            <div className="text-base sm:text-lg font-bold text-[#00ffd5] mt-1">{applications.length}</div>
+        {/* MÉTRICAS */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center">
+            <div className="text-[9px] sm:text-[10px] text-[#777] uppercase truncate">Enviadas</div>
+            <div className="text-sm sm:text-lg font-bold text-[#00ffd5] mt-1">{applications.length}</div>
           </div>
-          <div className="bg-[#111] border border-[#222] p-3 rounded-xl text-center">
-            <div className="text-[10px] text-[#777] uppercase">Radar Activo</div>
-            <div className="text-base sm:text-lg font-bold text-[#ededed] mt-1">{radarOpportunities.length}</div>
+          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center">
+            <div className="text-[9px] sm:text-[10px] text-[#777] uppercase truncate">Radar Activo</div>
+            <div className="text-sm sm:text-lg font-bold text-[#ededed] mt-1">{radarOpportunities.length}</div>
           </div>
-          <div className="col-span-2 sm:col-span-1 bg-[#111] border border-[#222] p-3 rounded-xl text-center">
-            <div className="text-[10px] text-[#777] uppercase">Match IA Promedio</div>
-            <div className="text-base sm:text-lg font-bold text-[#00ffd5] mt-1">98%</div>
+          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center">
+            <div className="text-[9px] sm:text-[10px] text-[#777] uppercase truncate">Match IA</div>
+            <div className="text-sm sm:text-lg font-bold text-[#00ffd5] mt-1">98%</div>
           </div>
         </div>
 
-        {/* BARRA DE URL / IA ANALYZER */}
+        {/* INPUT URL IA */}
         <div className="bg-[#111] border border-[#222] rounded-xl p-3 sm:p-4 shadow-xl">
           <form onSubmit={handleAiAutoFill} className="flex flex-col sm:flex-row gap-2">
             <input
               type="url"
-              placeholder="Pega la URL de la oferta (LinkedIn, Web)..."
+              placeholder="Pega la URL de la oferta..."
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
-              className="flex-1 bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
+              className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none truncate"
             />
             <button
               type="submit"
-              className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black border border-[#00ffd5]/30 font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer whitespace-nowrap"
+              className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black border border-[#00ffd5]/30 font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer whitespace-nowrap text-center shrink-0"
             >
               {processingAi ? 'Analizando...' : 'Analizar & Match IA'}
             </button>
           </form>
         </div>
 
-        {/* NAVEGACIÓN POR PESTAÑAS */}
-        <div className="flex border-b border-[#222] gap-4 sm:gap-6 text-xs overflow-x-auto pb-1">
+        {/* TABS NAVEGACIÓN */}
+        <div className="flex border-b border-[#222] gap-3 sm:gap-6 text-xs overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setActiveTab('radar')}
-            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap ${activeTab === 'radar' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
+            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap shrink-0 ${activeTab === 'radar' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
             [01] Radar ({radarOpportunities.length})
           </button>
           <button
             onClick={() => setActiveTab('form')}
-            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap ${activeTab === 'form' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
+            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap shrink-0 ${activeTab === 'form' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
             [02] Formulario & CV
           </button>
           <button
             onClick={() => setActiveTab('logs')}
-            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap ${activeTab === 'logs' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
+            className={`pb-3 border-b-2 font-bold cursor-pointer transition whitespace-nowrap shrink-0 ${activeTab === 'logs' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
             [03] Historial & Follow-up ({applications.length})
           </button>
         </div>
 
         {statusMessage && (
-          <div className="p-3 bg-[#0d1f1a] border border-[#00ffd5]/40 text-[#00ffd5] text-xs rounded-lg">
+          <div className="p-3 bg-[#0d1f1a] border border-[#00ffd5]/40 text-[#00ffd5] text-xs rounded-lg break-all">
             ● {statusMessage}
           </div>
         )}
 
-        {/* VISTA 1: RADAR GLOBAL */}
+        {/* VISTA 1: RADAR */}
         {activeTab === 'radar' && (
           <div className="space-y-3">
-            <div className="flex justify-between items-center text-xs text-[#777] mb-1">
-              <span>Búsqueda global (Remoto / Español / Inglés A2)</span>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-[#777] mb-1 gap-2">
+              <span className="truncate">Búsqueda global (Remoto / Español / Global)</span>
               <button 
                 onClick={async () => {
                   setLoadingRadar(true);
@@ -282,7 +291,7 @@ export default function Home() {
                     const data = await res.json();
                     if (data.opportunities) {
                       setRadarOpportunities(data.opportunities);
-                      setStatusMessage(`¡Radar sincronizado: ${data.opportunities.length} ofertas cargadas!`);
+                      setStatusMessage(`Radar sincronizado: ${data.opportunities.length} ofertas cargadas.`);
                     }
                   } catch (e) {
                     setStatusMessage('Error al sincronizar el radar.');
@@ -290,7 +299,7 @@ export default function Home() {
                     setLoadingRadar(false);
                   }
                 }} 
-                className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-1 rounded transition cursor-pointer"
+                className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-2 sm:py-1 rounded transition cursor-pointer text-center"
               >
                 {loadingRadar ? 'Sincronizando...' : '⚡ Sincronización Masiva'}
               </button>
@@ -301,20 +310,20 @@ export default function Home() {
               </div>
             ) : (
               radarOpportunities.map((op, idx) => (
-                <div key={idx} className="bg-[#111] border border-[#222] p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#ededed]">{op.companyName}</span>
-                      <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20">
+                <div key={idx} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition">
+                  <div className="w-full sm:w-3/4 overflow-hidden">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-[#ededed] truncate max-w-[200px] sm:max-w-xs">{op.companyName}</span>
+                      <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20 shrink-0">
                         Match: {op.matchScore}%
                       </span>
                     </div>
-                    <div className="text-xs text-[#00ffd5] mt-1">{op.jobTitle}</div>
+                    <div className="text-xs text-[#00ffd5] mt-1 break-words">{op.jobTitle}</div>
                     <div className="text-[10px] text-[#777] mt-1">Modalidad: {op.contractType}</div>
                   </div>
                   <button
                     onClick={() => handleSelectOpportunity(op)}
-                    className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer text-center"
+                    className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer text-center shrink-0"
                   >
                     Seleccionar →
                   </button>
@@ -334,11 +343,11 @@ export default function Home() {
               <select
                 value={templateType}
                 onChange={(e) => setTemplateType(e.target.value)}
-                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none cursor-pointer appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300ffd5%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2svg%3E')] bg-[length:9px_9px] bg-[right_12px_center] bg-no-repeat"
+                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none cursor-pointer appearance-none truncate"
               >
-                <option value="design-systems" className="bg-[#161616] text-[#ededed]">Design Systems & Product Design</option>
-                <option value="frontend" className="bg-[#161616] text-[#ededed]">Frontend Architecture (React / Next.js)</option>
-                <option value="consulting" className="bg-[#161616] text-[#ededed]">Consultoría Estratégica & Producción</option>
+                <option value="design-systems">Design Systems & Product Design</option>
+                <option value="frontend">Frontend Architecture (React / Next.js)</option>
+                <option value="consulting">Consultoría Estratégica & Producción</option>
               </select>
             </div>
 
@@ -372,7 +381,7 @@ export default function Home() {
                 required
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
-                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none"
+                className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none truncate"
               />
             </div>
 
@@ -392,7 +401,7 @@ export default function Home() {
                   type="text"
                   value={portfolioUrl}
                   onChange={(e) => setPortfolioUrl(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none"
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] outline-none truncate"
                 />
               </div>
             </div>
@@ -409,12 +418,12 @@ export default function Home() {
         {/* VISTA 3: HISTORIAL & FOLLOW-UPS */}
         {activeTab === 'logs' && (
           <div className="space-y-3">
-            <div className="flex justify-between items-center text-xs text-[#777] mb-1">
-              <span>Historial de envíos y automatización de seguimiento:</span>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center text-xs text-[#777] mb-1 gap-2">
+              <span className="truncate">Historial de envíos en Supabase:</span>
               {applications.length > 0 && (
                 <button
                   onClick={handleClearHistory}
-                  className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-black font-bold px-3 py-1 rounded transition cursor-pointer border border-red-500/20 text-[10px]"
+                  className="w-full sm:w-auto bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-black font-bold px-3 py-2 sm:py-1 rounded transition cursor-pointer border border-red-500/20 text-[10px] text-center"
                 >
                   Limpiar Historial ✕
                 </button>
@@ -426,13 +435,13 @@ export default function Home() {
               </div>
             ) : (
               applications.map((app) => (
-                <div key={app.id} className="bg-[#111] border border-[#222] p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <div className="font-bold text-[#ededed]">{app.company_name}</div>
-                    <div className="text-xs text-[#00ffd5] mt-0.5">{app.job_title}</div>
-                    <div className="text-[10px] text-[#777] mt-1">{app.recipient_email}</div>
+                <div key={app.id} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="w-full sm:w-3/4 overflow-hidden">
+                    <div className="font-bold text-[#ededed] truncate">{app.company_name}</div>
+                    <div className="text-xs text-[#00ffd5] mt-0.5 break-words">{app.job_title}</div>
+                    <div className="text-[10px] text-[#777] mt-1 truncate">{app.recipient_email}</div>
                   </div>
-                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
                     <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2.5 py-1 rounded-md font-bold border border-[#00ffd5]/20">
                       DELIVERED + PDF
                     </span>
@@ -440,7 +449,7 @@ export default function Home() {
                       onClick={() => handleFollowUp(app)}
                       className="bg-[#222] hover:bg-[#333] text-[#00ffd5] border border-[#00ffd5]/30 text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
                     >
-                      Enviar Follow-up ↺
+                      Follow-up ↺
                     </button>
                   </div>
                 </div>
