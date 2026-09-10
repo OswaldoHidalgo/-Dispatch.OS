@@ -17,9 +17,7 @@ interface Opportunity {
   contactName: string;
   contractType: string;
   duration: string;
-  roleCategory: string;
-  seniority: string;
-  languageMode: string;
+  matchScore: number;
   templateType: string;
 }
 
@@ -82,11 +80,11 @@ export default function Home() {
       if (res.ok && data.analysis) {
         setJobTitle(data.analysis.jobTitle);
         setTemplateType(data.analysis.templateType);
-        setCompanyName('Empresa Externa');
+        setCompanyName('Empresa Externa Global');
         setRecipientEmail('careers@target-company.com');
-        setContactName('Hiring Manager');
-        setStatusMessage('¡Oferta analizada y autoconfigurada por IA!');
-        setActiveTab('form'); // Salta al formulario listo para enviar
+        setContactName(data.analysis.contactName);
+        setStatusMessage(`¡Match de IA exitoso (${data.analysis.matchScore}% afín)!`);
+        setActiveTab('form');
       }
     } catch (err) {
       setStatusMessage('Error en el análisis de IA.');
@@ -110,8 +108,8 @@ export default function Home() {
         setRecipientEmail(op.recipientEmail);
         setContactName(op.contactName);
         setTemplateType(data.analysis.templateType);
-        setStatusMessage(`Configurado para: ${op.companyName}`);
-        setActiveTab('form'); // Salta al formulario listo
+        setStatusMessage(`Configurado y validado (${data.analysis.matchScore}% Match) para: ${op.companyName}`);
+        setActiveTab('form');
       }
     } catch (e) {
       setCompanyName(op.companyName);
@@ -129,7 +127,7 @@ export default function Home() {
     e.preventDefault();
     if (!recipientEmail || !companyName || !jobTitle) return;
 
-    setStatusMessage(`Despachando a ${companyName}...`);
+    setStatusMessage(`Despachando postulación y CV adaptado a ${companyName}...`);
 
     try {
       const res = await fetch('/api/apply', {
@@ -146,11 +144,11 @@ export default function Home() {
       });
 
       if (res.ok) {
-        setStatusMessage(`¡Postulación enviada con éxito a ${companyName}!`);
+        setStatusMessage(`¡Enviado con éxito a ${companyName}! CV adjunto entregado.`);
         fetchApplications();
         setActiveTab('logs');
       } else {
-        setStatusMessage('Error al despachar la postulación.');
+        setStatusMessage('Error al despachar el correo.');
       }
     } catch (err: any) {
       setStatusMessage('Error de conexión.');
@@ -159,29 +157,29 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-4 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black">
-      {/* HEADER SIMPLIFICADO */}
+      {/* HEADER */}
       <header className="max-w-4xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#222] pb-4 gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-widest flex items-center gap-2">
             <span className="inline-block w-2.5 h-2.5 bg-[#00ffd5] rounded-full animate-pulse"></span>
-            DISPATCH.OS
+            DISPATCH.OS // UNSTOPPABLE AGENT
           </h1>
-          <p className="text-[10px] text-[#777] tracking-wider">AI AGENT & DYNAMIC CV ADAPTER</p>
+          <p className="text-[10px] text-[#777] tracking-wider">GLOBAL PROSPECTION & 1-PAGE DYNAMIC CV ADAPTER</p>
         </div>
         <div className="text-[10px] bg-[#141414] border border-[#262626] px-3 py-1.5 rounded-md text-[#00ffd5]">
-          SUPABASE CLOUD ✓
+          SUPABASE CLOUD SYNC ✓
         </div>
       </header>
 
-      {/* CONTENEDOR PRINCIPAL MINIMALISTA */}
+      {/* CONTENEDOR PRINCIPAL */}
       <div className="max-w-4xl mx-auto space-y-6">
         
-        {/* BARRA DE URL / IA */}
+        {/* BARRA DE URL / IA ANALYZER */}
         <div className="bg-[#111] border border-[#222] rounded-xl p-4 shadow-xl">
           <form onSubmit={handleAiAutoFill} className="flex flex-col sm:flex-row gap-2">
             <input
               type="url"
-              placeholder="Pega la URL de una oferta (LinkedIn, Web)..."
+              placeholder="Pega la URL de cualquier oferta (LinkedIn, Web corporativa)..."
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
               className="flex-1 bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
@@ -190,24 +188,24 @@ export default function Home() {
               type="submit"
               className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black border border-[#00ffd5]/30 font-bold px-4 py-2 rounded-lg text-xs transition cursor-pointer whitespace-nowrap"
             >
-              {processingAi ? 'Analizando...' : 'Auto-llenar con IA'}
+              {processingAi ? 'Analizando...' : 'Analizar con IA & Match'}
             </button>
           </form>
         </div>
 
-        {/* NAVEGACIÓN POR PESTAÑAS (Móvil y Escritorio sin desorden) */}
+        {/* NAVEGACIÓN POR PESTAÑAS */}
         <div className="flex border-b border-[#222] gap-6 text-xs">
           <button
             onClick={() => setActiveTab('radar')}
             className={`pb-3 border-b-2 font-bold cursor-pointer transition ${activeTab === 'radar' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
-            [01] Radar Activo ({radarOpportunities.length})
+            [01] Radar Global Masivo ({radarOpportunities.length})
           </button>
           <button
             onClick={() => setActiveTab('form')}
             className={`pb-3 border-b-2 font-bold cursor-pointer transition ${activeTab === 'form' ? 'border-[#00ffd5] text-[#00ffd5]' : 'border-transparent text-[#777] hover:text-[#aaa]'}`}
           >
-            [02] Formulario & CV
+            [02] Formulario & CV Adaptado
           </button>
           <button
             onClick={() => setActiveTab('logs')}
@@ -223,40 +221,45 @@ export default function Home() {
           </div>
         )}
 
-        {/* VISTA 1: RADAR */}
+        {/* VISTA 1: RADAR GLOBAL */}
         {activeTab === 'radar' && (
           <div className="space-y-3">
             <div className="flex justify-between items-center text-xs text-[#777] mb-2">
-              <span>Oportunidades remotas y en español / A2</span>
+              <span>Búsqueda global automatizada (Remoto, Español / Inglés A2)</span>
               <button onClick={fetchRadar} className="text-[#00ffd5] hover:underline cursor-pointer">
-                {loadingRadar ? 'Actualizando...' : 'Refrescar'}
+                {loadingRadar ? 'Escaneando...' : 'Actualizar Radar'}
               </button>
             </div>
             {radarOpportunities.map((op, idx) => (
               <div key={idx} className="bg-[#111] border border-[#222] p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition">
                 <div>
-                  <div className="text-xs font-bold text-[#ededed]">{op.companyName}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#ededed]">{op.companyName}</span>
+                    <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20">
+                      Match: {op.matchScore}%
+                    </span>
+                  </div>
                   <div className="text-xs text-[#00ffd5] mt-0.5">{op.jobTitle}</div>
-                  <div className="text-[10px] text-[#777] mt-1">Contrato: {op.contractType} | Duración: {op.duration}</div>
+                  <div className="text-[10px] text-[#777] mt-1">Modalidad: {op.contractType} | Duración: {op.duration}</div>
                 </div>
                 <button
                   onClick={() => handleSelectOpportunity(op)}
                   className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-4 py-2 rounded-lg text-xs transition cursor-pointer"
                 >
-                  Seleccionar →
+                  Seleccionar y Adaptar CV →
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        {/* VISTA 2: FORMULARIO Y CV MAESTRO */}
+        {/* VISTA 2: FORMULARIO */}
         {activeTab === 'form' && (
           <form onSubmit={handleDispatch} className="bg-[#111] border border-[#222] rounded-xl p-5 space-y-4 shadow-xl">
-            <div className="text-xs font-bold text-[#00ffd5] mb-2">CONFIGURACIÓN DE ENVÍO & CV ADAPTADO</div>
+            <div className="text-xs font-bold text-[#00ffd5] mb-2">CONFIGURACIÓN DE ENVÍO & CV MAESTRO (1 PÁGINA)</div>
             
             <div>
-              <label className="block text-[10px] text-[#888] uppercase mb-1">Estrategia CV Maestro</label>
+              <label className="block text-[10px] text-[#888] uppercase mb-1">Estrategia CV Asignada por IA</label>
               <select
                 value={templateType}
                 onChange={(e) => setTemplateType(e.target.value)}
@@ -327,12 +330,12 @@ export default function Home() {
               type="submit"
               className="w-full mt-3 bg-[#00ffd5] hover:bg-[#00cca8] text-black font-bold py-3 rounded-lg text-xs transition cursor-pointer"
             >
-              DESPACHAR CORREO + CV PDF ADJUNTO →
+              DESPACHAR CORREO + PDF ADJUNTO (1 PÁGINA) →
             </button>
           </form>
         )}
 
-        {/* VISTA 3: HISTORIAL CLOUD */}
+        {/* VISTA 3: HISTORIAL */}
         {activeTab === 'logs' && (
           <div className="space-y-3">
             {applications.length === 0 ? (
@@ -348,7 +351,7 @@ export default function Home() {
                     <div className="text-[10px] text-[#777] mt-1">{app.recipient_email}</div>
                   </div>
                   <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2.5 py-1 rounded-md font-bold border border-[#00ffd5]/20">
-                    DELIVERED + PDF
+                    DELIVERED + 1-PAGE PDF
                   </span>
                 </div>
               ))
