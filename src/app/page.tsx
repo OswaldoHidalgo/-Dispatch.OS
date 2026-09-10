@@ -17,6 +17,8 @@ interface Opportunity {
   recipientEmail: string;
   contactName: string;
   contractType: string;
+  location: string;
+  salary: string;
   duration: string;
   matchScore: number;
   templateType: string;
@@ -197,7 +199,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-3 sm:p-5 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black w-full overflow-x-hidden box-border">
       
-      {/* HEADER RESPONSIVE BLINDADO */}
+      {/* HEADER RESPONSIVE */}
       <header className="max-w-4xl mx-auto mb-5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-[#222] pb-4 gap-3">
         <div className="min-w-0">
           <h1 className="text-sm sm:text-xl font-bold tracking-widest flex items-center gap-2 truncate">
@@ -310,15 +312,19 @@ export default function Home() {
             ) : (
               radarOpportunities.map((op, idx) => (
                 <div key={idx} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition min-w-0">
-                  <div className="w-full sm:w-3/4 min-w-0">
+                  <div className="w-full sm:w-3/4 min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-xs font-bold text-[#ededed] truncate">{op.companyName}</span>
                       <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20 shrink-0">
                         Match: {op.matchScore}%
                       </span>
                     </div>
-                    <div className="text-xs text-[#00ffd5] mt-1 break-words">{op.jobTitle}</div>
-                    <div className="text-[10px] text-[#777] mt-1">Modalidad: {op.contractType}</div>
+                    <div className="text-xs text-[#00ffd5] break-words">{op.jobTitle}</div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-[#888] pt-1">
+                      <span>🌍 Ubicación: <strong className="text-[#ccc]">{op.location}</strong></span>
+                      <span>💰 Salario: <strong className="text-[#00ffd5]">{op.salary}</strong></span>
+                      <span>💼 Tipo: <strong className="text-[#ccc]">{op.contractType}</strong></span>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleSelectOpportunity(op)}

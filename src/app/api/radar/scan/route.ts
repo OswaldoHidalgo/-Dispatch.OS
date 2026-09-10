@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 
-// Forzar que la ruta sea dinámica y no se guarde en caché estática de Vercel
 export const dynamic = 'force-dynamic';
-export const revalidate = 3600; // Refresco nominal cada 1 hora (3600 segundos)
+export const revalidate = 3600;
 
 export async function GET() {
   try {
     const res = await fetch('https://remotive.com/api/remote-jobs?limit=100', {
-      cache: 'no-store' // Evita que Next.js guarde en caché resultados viejos
+      cache: 'no-store'
     });
     const data = await res.json();
 
@@ -37,6 +36,12 @@ export async function GET() {
         const title = job.title || 'Product Designer';
         const description = (job.description || '').toLowerCase();
         
+        // Extraemos país/ubicación requerida o asignamos Global
+        const location = job.candidate_required_location || 'Global / Remoto';
+        
+        // Extraemos salario si viene en la API, de lo contrario colocamos N/A limpiamente
+        const salary = job.salary && job.salary.trim() !== '' ? job.salary : 'N/A';
+
         let score = 88;
         if (description.includes('spanish') || description.includes('español') || description.includes('latam')) score += 10;
         if (description.includes('next.js') || description.includes('react') || description.includes('design systems')) score += 6;
@@ -48,6 +53,8 @@ export async function GET() {
           recipientEmail: job.url || 'careers@remotework.com',
           contactName: 'Talent Acquisition',
           contractType: job.job_type?.toLowerCase() || 'full-time',
+          location: location,
+          salary: salary,
           duration: 'Indefinido',
           matchScore: score,
           templateType: title.toLowerCase().includes('frontend') ? 'frontend' : 'design-systems'
@@ -55,7 +62,6 @@ export async function GET() {
       });
     }
 
-    // Si no hay resultados, devolvemos un arreglo vacío limpio (sin plantillas de relleno)
     return NextResponse.json({
       success: true,
       count: opportunities.length,
