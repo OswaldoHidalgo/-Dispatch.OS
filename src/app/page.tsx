@@ -10,7 +10,6 @@ interface Application {
   created_at: string;
   contract_type?: string;
   duration?: string;
-  role_category?: string;
 }
 
 interface Opportunity {
@@ -33,12 +32,14 @@ export default function Home() {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [contactName, setContactName] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('https://oswaldohidalgo.com');
+  const [targetUrl, setTargetUrl] = useState('');
   
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [radarOpportunities, setRadarOpportunities] = useState<Opportunity[]>([]);
   const [loadingRadar, setLoadingRadar] = useState(false);
+  const [loadingUrl, setLoadingUrl] = useState(false);
 
   const addLog = (msg: string) => {
     const timestamp = new Date().toTimeString().split(' ')[0];
@@ -49,26 +50,24 @@ export default function Home() {
     try {
       const res = await fetch('/api/applications');
       const data = await res.json();
-      if (data.applications) {
-        setApplications(data.applications);
-      }
+      if (data.applications) setApplications(data.applications);
     } catch (e) {
-      console.error('Error fetching applications', e);
+      console.error(e);
     }
   };
 
   const fetchRadar = async () => {
     setLoadingRadar(true);
-    addLog('ESCANEANDO RED GLOBAL DE EMPLEO (REMOTO / ESPAÑOL / INGLÉS A2)...');
+    addLog('ESCANEANDO RADAR GLOBAL EN TIEMPO REAL...');
     try {
       const res = await fetch('/api/radar/scan');
       const data = await res.json();
       if (data.opportunities) {
         setRadarOpportunities(data.opportunities);
-        addLog(`RADAR ACTUALIZADO: ${data.opportunities.length} OPORTUNIDADES ENCONTRADAS.`);
+        addLog(`RADAR ACTUALIZADO: ${data.opportunities.length} OPORTUNIDADES.`);
       }
     } catch (e) {
-      addLog('ERROR AL ESCANEAR EL RADAR GLOBAL.');
+      addLog('ERROR AL ESCANEAR EL RADAR.');
     } finally {
       setLoadingRadar(false);
     }
@@ -78,6 +77,35 @@ export default function Home() {
     fetchApplications();
     fetchRadar();
   }, []);
+
+  const handleScrapeUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetUrl) return;
+    setLoadingUrl(true);
+    addLog(`ANALIZANDO ENLACE DE OFERTA: ${targetUrl}`);
+
+    try {
+      const res = await fetch('/api/radar/scrape-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: targetUrl }),
+      });
+      const data = await res.json();
+      if (res.ok && data.data) {
+        setCompanyName(data.data.companyName);
+        setJobTitle(data.data.jobTitle);
+        setRecipientEmail(data.data.recipientEmail);
+        setContactName(data.data.contactName);
+        setTemplateType(data.data.templateType);
+        addLog('¡ENLACE PROCESADO! DATOS CARGADOS EN EL FORMULARIO MANUAL.');
+        setStatusMessage('OFERTA EXTRAÍDA Y LISTA PARA DESPACHO');
+      }
+    } catch (err) {
+      addLog('ERROR AL PROCESAR EL ENLACE.');
+    } finally {
+      setLoadingUrl(false);
+    }
+  };
 
   const handleDispatch = async (e?: React.FormEvent, customData?: Opportunity) => {
     if (e) e.preventDefault();
@@ -89,15 +117,13 @@ export default function Home() {
     const targetTemplate = customData ? customData.templateType : templateType;
 
     if (!targetEmail || !targetCompany || !targetRole) {
-      alert('Por favor complete los campos obligatorios de la postulación.');
+      alert('Complete los campos obligatorios.');
       return;
     }
 
-    setStatusMessage(`INICIANDO DISPACH: ${targetCompany.toUpperCase()}`);
-    addLog('INICIANDO PROTOCOLO DE DESPACHO...');
+    setStatusMessage(`DESPACHANDO A: ${targetCompany.toUpperCase()}`);
+    addLog('INICIANDO PROTOCOLO DE DESPACHO & CV PDF ADJUNTO...');
     addLog(`OBJETIVO: ${targetCompany}`);
-    addLog(`PLANTILLA: ${targetTemplate.toUpperCase()}`);
-    addLog('CONECTANDO A GMAIL API OAUTH2...');
 
     try {
       const res = await fetch('/api/apply', {
@@ -116,24 +142,17 @@ export default function Home() {
       const data = await res.json();
 
       if (res.ok) {
-        addLog(`RESPUESTA SERVIDOR: ${res.status} OK`);
-        addLog(`MESSAGE_ID: ${data.messageId || 'SENT'}`);
-        addLog('PERSISTIENDO REGISTRO EN SUPABASE CLOUD DB...');
-        setStatusMessage(`POSTULACION DESPACHADA Y REGISTRADA: ${targetCompany.toUpperCase()}`);
+        addLog(`RESPUESTA 200 OK — ID: ${data.messageId}`);
+        addLog('CV ADAPTADO Y REGISTRADO EN SUPABASE CLOUD.');
+        setStatusMessage(`POSTULACIÓN ENVIADA CON ÉXITO: ${targetCompany}`);
         fetchApplications();
       } else {
-        addLog(`ERROR SERVIDOR: ${data.error || 'Falla en despacho'}`);
+        addLog(`ERROR: ${data.error}`);
         setStatusMessage(`ERROR: ${data.error}`);
       }
     } catch (err: any) {
       addLog(`EXCEPCIÓN: ${err.message}`);
-      setStatusMessage('ERROR DE CONEXIÓN CON EL SERVIDOR');
     }
-  };
-
-  const purgeLogs = async () => {
-    setApplications([]);
-    addLog('REGISTROS LOCALES LIMPIADOS.');
   };
 
   return (
@@ -143,48 +162,68 @@ export default function Home() {
         <div>
           <h1 className="text-2xl font-bold tracking-widest flex items-center gap-2">
             <span className="inline-block w-3 h-3 bg-[#00ffd5] rounded-full animate-pulse"></span>
-            DISPATCH.OS
+            DISPATCH.OS // MASTER AGENT
           </h1>
           <p className="text-xs text-[#777] tracking-wider mt-1">
-            AUTOMATED OUTREACH, CONSULTING & PROSPECTION PROTOCOL // GMAIL + SUPABASE ENGINE
+            AUTONOMOUS PROSPECTION & DYNAMIC CV PDF ADAPTER // GMAIL + SUPABASE
           </p>
         </div>
         <div className="flex items-center gap-3 bg-[#141414] border border-[#262626] px-4 py-2 rounded-lg text-xs">
           <span className="text-[#888]">DATABASE:</span>
-          <span className="text-[#00ffd5] font-semibold flex items-center gap-1">
-            SUPABASE POSTGRESQL (CLOUD) ✓
-          </span>
+          <span className="text-[#00ffd5] font-semibold">SUPABASE CLOUD SYNC ✓</span>
         </div>
       </header>
 
-      {/* GRID LAYOUT PRINCIPAL */}
+      {/* SCRAPER DE URLS BAJO DEMANDA */}
+      <div className="max-w-7xl mx-auto mb-8 bg-[#111] border border-[#222] rounded-xl p-4 shadow-xl">
+        <form onSubmit={handleScrapeUrl} className="flex flex-col md:flex-row gap-3 items-center">
+          <div className="flex-1 w-full">
+            <label className="block text-[10px] text-[#00ffd5] uppercase tracking-widest mb-1">Scraper de Enlaces (Pegar URL de oferta LinkedIn / Web)</label>
+            <input
+              type="url"
+              placeholder="https://www.linkedin.com/jobs/view/..."
+              value={targetUrl}
+              onChange={(e) => setTargetUrl(e.target.value)}
+              className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full md:w-auto mt-5 bg-[#222] hover:bg-[#333] text-[#00ffd5] border border-[#00ffd5]/30 font-bold px-6 py-2 rounded-lg text-xs transition cursor-pointer"
+          >
+            {loadingUrl ? 'ANALIZANDO...' : 'EXTRAER & AUTO-LLENAR →'}
+          </button>
+        </form>
+      </div>
+
+      {/* GRID PRINCIPAL */}
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* COLUMNA [01] MANUAL LAUNCH PARAMETERS */}
-        <section className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden">
+        {/* COLUMNA [01] LAUNCH PARAMETERS */}
+        <section className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col justify-between shadow-2xl">
           <div>
             <div className="flex justify-between items-center mb-6 border-b border-[#222] pb-3">
-              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[01] MANUAL LAUNCH PARAMETERS</span>
-              <span className="text-[10px] bg-[#1a1a1a] text-[#888] px-2 py-1 rounded border border-[#333]">POST /API/APPLY</span>
+              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[01] LAUNCH PARAMETERS & CV ADAPTER</span>
+              <span className="text-[10px] bg-[#1a1a1a] text-[#888] px-2 py-1 rounded border border-[#333]">CV MAESTRO ACTIVO</span>
             </div>
 
             {statusMessage && (
-              <div className="mb-6 p-3 bg-[#0d1f1a] border border-[#00ffd5]/40 text-[#00ffd5] text-xs rounded-lg tracking-wide">
+              <div className="mb-6 p-3 bg-[#0d1f1a] border border-[#00ffd5]/40 text-[#00ffd5] text-xs rounded-lg">
                 ● {statusMessage}
               </div>
             )}
 
             <form onSubmit={(e) => handleDispatch(e)} className="space-y-4">
               <div>
-                <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Template Narrative Profile</label>
+                <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Plantilla & Enfoque CV</label>
                 <select
                   value={templateType}
                   onChange={(e) => setTemplateType(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
                 >
-                  <option value="design-systems">Senior Product Designer & Design Systems (SaaS Focus)</option>
-                  <option value="frontend">Frontend Engineer (Next.js, React, Tailwind, TypeScript)</option>
-                  <option value="consulting">Consultor de Producto & Arquitectura Digital (Retainer/Project)</option>
+                  <option value="design-systems">Design Systems & Product Design (OneMeta / Stripe Focus)</option>
+                  <option value="frontend">Frontend Architecture & UI Engineer (React / Next.js)</option>
+                  <option value="consulting">Consultoría Estratégica & Producción (Retainer / Multi-moneda)</option>
                 </select>
               </div>
 
@@ -194,10 +233,10 @@ export default function Home() {
                   <input
                     type="text"
                     required
-                    placeholder="Stripe, Vercel, Banesco..."
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
+                    placeholder="Nubank, Vercel..."
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
                   />
                 </div>
                 <div>
@@ -205,10 +244,10 @@ export default function Home() {
                   <input
                     type="text"
                     required
-                    placeholder="Senior Product Designer / Consultor"
                     value={jobTitle}
                     onChange={(e) => setJobTitle(e.target.value)}
-                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
+                    placeholder="Senior Product Designer"
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
                   />
                 </div>
               </div>
@@ -218,10 +257,10 @@ export default function Home() {
                 <input
                   type="email"
                   required
-                  placeholder="careers@company.com"
                   value={recipientEmail}
                   onChange={(e) => setRecipientEmail(e.target.value)}
-                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
+                  placeholder="talent@company.com"
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
                 />
               </div>
 
@@ -230,10 +269,10 @@ export default function Home() {
                   <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Contact Name</label>
                   <input
                     type="text"
-                    placeholder="Sarah o Recruiter"
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
-                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
+                    placeholder="Camila / Recruiter"
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
                   />
                 </div>
                 <div>
@@ -242,7 +281,7 @@ export default function Home() {
                     type="text"
                     value={portfolioUrl}
                     onChange={(e) => setPortfolioUrl(e.target.value)}
-                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none"
                   />
                 </div>
               </div>
@@ -251,13 +290,13 @@ export default function Home() {
                 type="submit"
                 className="w-full mt-4 bg-[#00ffd5] hover:bg-[#00cca8] text-black font-bold tracking-wider py-3 rounded-lg text-xs transition duration-200 shadow-lg shadow-[#00ffd5]/10 cursor-pointer"
               >
-                SEND APPLICATION // DISPATCH →
+                DISPATCH APPLICATION & ADAPTED CV PDF →
               </button>
             </form>
           </div>
 
           {/* TERMINAL FEED */}
-          <div className="mt-6 bg-[#070707] border border-[#222] rounded-lg p-3 h-36 overflow-y-auto text-[11px] font-mono text-[#00ffd5] flex flex-col justify-end">
+          <div className="mt-6 bg-[#070707] border border-[#222] rounded-lg p-3 h-32 overflow-y-auto text-[11px] font-mono text-[#00ffd5] flex flex-col justify-end">
             <div className="text-[#555] mb-1">LIVE TERMINAL FEED</div>
             {terminalLogs.map((log, index) => (
               <div key={index} className="leading-tight py-0.5">{log}</div>
@@ -265,13 +304,13 @@ export default function Home() {
           </div>
         </section>
 
-        {/* COLUMNA [02] SUPABASE CLOUD LOG & [03] GLOBAL RADAR */}
+        {/* COLUMNA [02] & [03] */}
         <div className="space-y-8">
           
-          {/* [03] GLOBAL TALENT & CONSULTING RADAR */}
+          {/* [03] GLOBAL RADAR */}
           <section className="bg-[#111] border border-[#222] rounded-xl p-6 shadow-2xl">
             <div className="flex justify-between items-center mb-4 border-b border-[#222] pb-3">
-              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[03] GLOBAL TALENT & CONSULTING RADAR</span>
+              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[03] GLOBAL PROSPECTION RADAR</span>
               <button 
                 onClick={fetchRadar}
                 className="text-[10px] bg-[#1a1a1a] hover:bg-[#222] text-[#00ffd5] px-3 py-1 rounded border border-[#333] cursor-pointer"
@@ -280,37 +319,30 @@ export default function Home() {
               </button>
             </div>
             <p className="text-[11px] text-[#777] mb-4">
-              Búsqueda automatizada (Remoto Global, Latam, España, Inglés A2 / Español) • Todo nivel y contrato.
+              Vacantes en español e inglés A2 (Remoto Global, Contratos, Freelance, Consultorías).
             </p>
 
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-              {radarOpportunities.length === 0 ? (
-                <div className="text-center py-6 text-xs text-[#666]">No hay oportunidades cargadas en este momento.</div>
-              ) : (
-                radarOpportunities.map((op, idx) => (
-                  <div key={idx} className="bg-[#161616] border border-[#262626] p-3 rounded-lg hover:border-[#00ffd5]/50 transition flex flex-col gap-2">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-xs font-bold text-[#ededed]">{op.companyName}</span>
-                        <div className="text-[11px] text-[#00ffd5]">{op.jobTitle}</div>
-                      </div>
-                      <div className="flex gap-1">
-                        <span className="text-[9px] bg-[#222] text-[#aaa] px-2 py-0.5 rounded uppercase">{op.contractType}</span>
-                        <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded uppercase">{op.languageMode}</span>
-                      </div>
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              {radarOpportunities.map((op, idx) => (
+                <div key={idx} className="bg-[#161616] border border-[#262626] p-3 rounded-lg hover:border-[#00ffd5]/50 transition flex flex-col gap-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-xs font-bold text-[#ededed]">{op.companyName}</span>
+                      <div className="text-[11px] text-[#00ffd5]">{op.jobTitle}</div>
                     </div>
-                    <div className="flex justify-between items-center text-[10px] text-[#888] pt-2 border-t border-[#222]">
-                      <span>Duración: {op.duration} | Seniority: {op.seniority}</span>
-                      <button
-                        onClick={() => handleDispatch(undefined, op)}
-                        className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-1 rounded transition cursor-pointer"
-                      >
-                        DISPATCH →
-                      </button>
-                    </div>
+                    <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded uppercase">{op.contractType}</span>
                   </div>
-                ))
-              )}
+                  <div className="flex justify-between items-center text-[10px] text-[#888] pt-2 border-t border-[#222]">
+                    <span>Duración: {op.duration}</span>
+                    <button
+                      onClick={() => handleDispatch(undefined, op)}
+                      className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-1 rounded transition cursor-pointer"
+                    >
+                      DISPATCH + CV →
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 
@@ -320,36 +352,23 @@ export default function Home() {
               <span className="text-xs tracking-widest text-[#00ffd5] font-bold">
                 [02] SUPABASE CLOUD LOG ({applications.length})
               </span>
-              <button
-                onClick={purgeLogs}
-                className="text-[10px] text-[#888] hover:text-[#ff5555] uppercase tracking-wider cursor-pointer"
-              >
-                Purge Logs
-              </button>
             </div>
 
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
               {applications.length === 0 ? (
-                <div className="text-center py-8 text-xs text-[#555] border border-dashed border-[#222] rounded-lg">
+                <div className="text-center py-6 text-xs text-[#555] border border-dashed border-[#222] rounded-lg">
                   NO ACTIVE TRANSMISSIONS IN DB
                 </div>
               ) : (
                 applications.map((app) => (
-                  <div
-                    key={app.id}
-                    className="bg-[#161616] border border-[#262626] p-3 rounded-lg flex justify-between items-center text-xs"
-                  >
+                  <div key={app.id} className="bg-[#161616] border border-[#262626] p-3 rounded-lg flex justify-between items-center text-xs">
                     <div>
                       <div className="font-bold text-[#ededed]">{app.company_name}</div>
                       <div className="text-[11px] text-[#aaa]">{app.job_title}</div>
-                      <div className="text-[10px] text-[#666] mt-1">{app.recipient_email}</div>
                     </div>
-                    <div className="text-right flex flex-col items-end gap-1">
+                    <div className="text-right">
                       <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20">
-                        DELIVERED
-                      </span>
-                      <span className="text-[10px] text-[#666]">
-                        {new Date(app.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        DELIVERED + CV
                       </span>
                     </div>
                   </div>
@@ -360,12 +379,6 @@ export default function Home() {
 
         </div>
       </div>
-
-      {/* FOOTER */}
-      <footer className="max-w-7xl mx-auto mt-12 border-t border-[#222] pt-4 flex justify-between items-center text-[11px] text-[#555]">
-        <div>UX/UI SYSTEM // OSWALDO HIDALGO</div>
-        <div>DATABASE: SUPABASE POSTGRESQL (CLOUD SYNC)</div>
-      </footer>
     </main>
   );
 }
