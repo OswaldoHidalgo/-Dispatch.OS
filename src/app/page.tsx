@@ -288,7 +288,7 @@ export default function Home() {
                 onClick={async () => {
                   setLoadingRadar(true);
                   try {
-                    const res = await fetch('/api/radar/sync');
+                    const res = await fetch('/api/radar/scan');
                     const data = await res.json();
                     if (data.opportunities) {
                       setRadarOpportunities(data.opportunities);
