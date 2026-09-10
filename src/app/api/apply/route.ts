@@ -14,27 +14,52 @@ export async function POST(request: Request) {
       );
     }
 
-    const subject = `${jobTitle} - Oswaldo Hidalgo | Senior UX/UI & Product Designer`;
+    const isFollowUp = jobTitle.toLowerCase().includes('follow-up');
+    const cleanJobTitle = jobTitle.replace(/^Follow-up:\s*/i, '');
+
+    const subject = isFollowUp 
+      ? `Seguimiento postulación: ${cleanJobTitle} - Oswaldo Hidalgo` 
+      : `${cleanJobTitle} - Oswaldo Hidalgo | Senior UX/UI & Product Designer`;
+      
     const name = contactName || 'Equipo de Selección';
     const portfolio = portfolioUrl || 'https://oswaldohidalgo.com';
 
-    let focusText = '';
+    let bodyText = '';
 
-    switch (templateType) {
-      case 'design-systems':
-        focusText = `Como especialista en Sistemas de Diseño y Arquitectura de Componentes (React, Tailwind CSS, Radix UI, shadcn/ui), me enfoco en crear librerías UI escalables, accesibles (WCAG 2.1 AA) y perfectamente documentadas para optimizar la velocidad del equipo de ingeniería.`;
-        break;
-      case 'frontend':
-        focusText = `Combino habilidades avanzadas de UX/UI con desarrollo Frontend (Next.js App Router, TypeScript, Tailwind CSS), garantizando una implementación impecable desde el prototipo Figma hasta el código en producción.`;
-        break;
-      default:
-        focusText = `Como Senior Product Designer especializado en productos SaaS dinámicos, ayudo a startups y empresas a transformar flujos complejos en interfaces intuitivas, escalables y orientadas a la conversión de usuarios.`;
-        break;
-    }
+    if (isFollowUp) {
+      bodyText = `Hola ${name},
 
-    const bodyText = `Hola ${name},
+Espero que te encuentres muy bien. Te escribo para dar un breve seguimiento a mi postulación reciente para la vacante de ${cleanJobTitle} en ${companyName}.
 
-Vi la vacante de ${jobTitle} en ${companyName} y me motivó su enfoque en el desarrollo de productos digitales de alto impacto.
+Sigo muy interesado en sumar mi experiencia en arquitecturas de productos SaaS y sistemas de diseño al equipo. 
+
+Adjunto nuevamente mi CV actualizado de una página para mayor comodidad, y puedes consultar mi portafolio aquí:
+${portfolio}
+
+Quedo a tu disposición para conversar cuando lo consideres oportuno.
+
+Saludos cordiales,
+
+Oswaldo Hidalgo
+Senior UX/UI & Product Designer
+`;
+    } else {
+      let focusText = '';
+      switch (templateType) {
+        case 'design-systems':
+          focusText = `Como especialista en Sistemas de Diseño y Arquitectura de Componentes (React, Tailwind CSS, Radix UI, shadcn/ui), me enfoco en crear librerías UI escalables, accesibles (WCAG 2.1 AA) y perfectamente documentadas para optimizar la velocidad del equipo de ingeniería.`;
+          break;
+        case 'frontend':
+          focusText = `Combino habilidades avanzadas de UX/UI con desarrollo Frontend (Next.js App Router, TypeScript, Tailwind CSS), garantizando una implementación impecable desde el prototipo Figma hasta el código en producción.`;
+          break;
+        default:
+          focusText = `Como Senior Product Designer especializado en productos SaaS dinámicos, ayudo a startups y empresas a transformar flujos complejos en interfaces intuitivas, escalables y orientadas a la conversión de usuarios.`;
+          break;
+      }
+
+      bodyText = `Hola ${name},
+
+Vi la vacante de ${cleanJobTitle} en ${companyName} y me motivó su enfoque en el desarrollo de productos digitales de alto impacto.
 
 ${focusText}
 
@@ -50,10 +75,11 @@ Saludos cordiales,
 Oswaldo Hidalgo
 Senior UX/UI & Product Designer
 `;
+    }
 
-    // 1. Generar CV en PDF adaptado al vuelo
+    // 1. Generar CV en PDF adaptado (1 página)
     const cvBuffer = await generateCustomCV({
-      jobTitle,
+      jobTitle: cleanJobTitle,
       companyName,
       templateType: templateType || 'design-systems',
     });
@@ -70,7 +96,7 @@ Senior UX/UI & Product Designer
       attachmentFilename,
     });
 
-    // 3. Insertar registro en Supabase Cloud DB
+    // 3. Registrar en Supabase Cloud DB
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -85,12 +111,12 @@ Senior UX/UI & Product Designer
         },
         body: JSON.stringify({
           company_name: companyName,
-          job_title: jobTitle,
+          job_title: isFollowUp ? `Follow-up: ${cleanJobTitle}` : cleanJobTitle,
           recipient_email: recipientEmail,
           contact_name: contactName || '',
-          template_type: templateType || 'product-design',
+          template_type: templateType || 'design-systems',
           message_id: result.messageId || 'SENT',
-          status: 'sent',
+          status: isFollowUp ? 'follow_up_sent' : 'sent',
         }),
       });
     }
@@ -98,7 +124,7 @@ Senior UX/UI & Product Designer
     return NextResponse.json(
       {
         success: true,
-        message: `Postulación y CV adjunto enviados con éxito a ${companyName}`,
+        message: `Correo ${isFollowUp ? 'de seguimiento' : 'de postulación'} enviado con éxito a ${companyName}`,
         messageId: result.messageId,
       },
       { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
