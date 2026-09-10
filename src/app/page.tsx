@@ -2,391 +2,369 @@
 
 import { useState, useEffect } from 'react';
 
-interface ApplicationRecord {
+interface Application {
   id: string;
   company_name: string;
   job_title: string;
   recipient_email: string;
-  contact_name?: string;
-  template_type?: string;
   created_at: string;
-  status: 'sent' | 'failed';
+  contract_type?: string;
+  duration?: string;
+  role_category?: string;
 }
 
-export default function Dashboard() {
-  const [formData, setFormData] = useState({
-    companyName: '',
-    jobTitle: '',
-    recipientEmail: '',
-    contactName: '',
-    portfolioUrl: 'https://oswaldohidalgo.com',
-    templateType: 'product-design',
-  });
+interface Opportunity {
+  companyName: string;
+  jobTitle: string;
+  recipientEmail: string;
+  contactName: string;
+  contractType: string;
+  duration: string;
+  roleCategory: string;
+  seniority: string;
+  languageMode: string;
+  templateType: string;
+}
 
-  const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [history, setHistory] = useState<ApplicationRecord[]>([]);
-  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [loadingHistory, setLoadingHistory] = useState(true);
+export default function Home() {
+  const [templateType, setTemplateType] = useState('design-systems');
+  const [companyName, setCompanyName] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [portfolioUrl, setPortfolioUrl] = useState('https://oswaldohidalgo.com');
+  
+  const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [radarOpportunities, setRadarOpportunities] = useState<Opportunity[]>([]);
+  const [loadingRadar, setLoadingRadar] = useState(false);
 
-  // Spotlight mouse listener
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMousePos({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
+  const addLog = (msg: string) => {
+    const timestamp = new Date().toTimeString().split(' ')[0];
+    setTerminalLogs((prev) => [...prev, `[${timestamp}] ${msg}`]);
+  };
 
-  // Fetch application history from cloud database
-  const fetchHistory = async () => {
+  const fetchApplications = async () => {
     try {
-      setLoadingHistory(true);
       const res = await fetch('/api/applications');
-      if (res.ok) {
-        const data = await res.json();
-        setHistory(data.applications || []);
+      const data = await res.json();
+      if (data.applications) {
+        setApplications(data.applications);
       }
-    } catch (err) {
-      console.error('Error fetching history:', err);
+    } catch (e) {
+      console.error('Error fetching applications', e);
+    }
+  };
+
+  const fetchRadar = async () => {
+    setLoadingRadar(true);
+    addLog('ESCANEANDO RED GLOBAL DE EMPLEO (REMOTO / ESPAÑOL / INGLÉS A2)...');
+    try {
+      const res = await fetch('/api/radar/scan');
+      const data = await res.json();
+      if (data.opportunities) {
+        setRadarOpportunities(data.opportunities);
+        addLog(`RADAR ACTUALIZADO: ${data.opportunities.length} OPORTUNIDADES ENCONTRADAS.`);
+      }
+    } catch (e) {
+      addLog('ERROR AL ESCANEAR EL RADAR GLOBAL.');
     } finally {
-      setLoadingHistory(false);
+      setLoadingRadar(false);
     }
   };
 
   useEffect(() => {
-    fetchHistory();
+    fetchApplications();
+    fetchRadar();
   }, []);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleDispatch = async (e?: React.FormEvent, customData?: Opportunity) => {
+    if (e) e.preventDefault();
 
-  const addLog = (msg: string) => {
-    setConsoleLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
-  };
+    const targetCompany = customData ? customData.companyName : companyName;
+    const targetRole = customData ? customData.jobTitle : jobTitle;
+    const targetEmail = customData ? customData.recipientEmail : recipientEmail;
+    const targetContact = customData ? customData.contactName : contactName;
+    const targetTemplate = customData ? customData.templateType : templateType;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setStatusMessage(null);
-    setConsoleLogs([]);
+    if (!targetEmail || !targetCompany || !targetRole) {
+      alert('Por favor complete los campos obligatorios de la postulación.');
+      return;
+    }
 
+    setStatusMessage(`INICIANDO DISPACH: ${targetCompany.toUpperCase()}`);
     addLog('INICIANDO PROTOCOLO DE DESPACHO...');
-    addLog(`OBJETIVO: ${formData.companyName.toUpperCase()}`);
-    addLog(`PLANTILLA: ${formData.templateType.toUpperCase()}`);
+    addLog(`OBJETIVO: ${targetCompany}`);
+    addLog(`PLANTILLA: ${targetTemplate.toUpperCase()}`);
+    addLog('CONECTANDO A GMAIL API OAUTH2...');
 
     try {
-      await new Promise((r) => setTimeout(r, 300));
-      addLog('CONECTANDO A GMAIL API OAUTH2...');
-
       const res = await fetch('/api/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          recipientEmail: targetEmail,
+          companyName: targetCompany,
+          jobTitle: targetRole,
+          contactName: targetContact,
+          portfolioUrl,
+          templateType: targetTemplate,
+        }),
       });
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        addLog('RESPUESTA SERVIDOR: 200 OK');
-        addLog(`MESSAGE_ID: ${data.messageId}`);
+      if (res.ok) {
+        addLog(`RESPUESTA SERVIDOR: ${res.status} OK`);
+        addLog(`MESSAGE_ID: ${data.messageId || 'SENT'}`);
         addLog('PERSISTIENDO REGISTRO EN SUPABASE CLOUD DB...');
-
-        setStatusMessage({ type: 'success', text: `POSTULACION DESPACHADA Y REGISTRADA: ${formData.companyName.toUpperCase()}` });
-
-        // Synchronize live cloud logs
-        await fetchHistory();
-
-        setFormData({
-          companyName: '',
-          jobTitle: '',
-          recipientEmail: '',
-          contactName: '',
-          portfolioUrl: formData.portfolioUrl,
-          templateType: formData.templateType,
-        });
+        setStatusMessage(`POSTULACION DESPACHADA Y REGISTRADA: ${targetCompany.toUpperCase()}`);
+        fetchApplications();
       } else {
-        throw new Error(data.error || 'ERROR_ENVIO');
+        addLog(`ERROR SERVIDOR: ${data.error || 'Falla en despacho'}`);
+        setStatusMessage(`ERROR: ${data.error}`);
       }
     } catch (err: any) {
-      addLog(`ERROR: ${err.message}`);
-      setStatusMessage({ type: 'error', text: err.message || 'CONEXION_RECHAZADA' });
-    } finally {
-      setLoading(false);
+      addLog(`EXCEPCIÓN: ${err.message}`);
+      setStatusMessage('ERROR DE CONEXIÓN CON EL SERVIDOR');
     }
   };
 
-  const clearHistory = async () => {
-    if (confirm('¿Deseas purgar todos los registros almacenados en la base de datos cloud?')) {
-      try {
-        const res = await fetch('/api/applications', { method: 'DELETE' });
-        if (res.ok) {
-          setHistory([]);
-          addLog('REGISTROS EN SUPABASE PURGADOS CON ÉXITO.');
-        }
-      } catch (err) {
-        console.error('Error al purgar historial:', err);
-      }
-    }
+  const purgeLogs = async () => {
+    setApplications([]);
+    addLog('REGISTROS LOCALES LIMPIADOS.');
   };
 
   return (
-    <main className="min-h-screen bg-[#030305] text-neutral-100 font-sans selection:bg-cyan-500 selection:text-black relative overflow-hidden flex flex-col justify-between p-6 md:p-12 cursor-default">
-      {/* Interactive Cursor Spotlight */}
-      <div
-        className="pointer-events-none fixed inset-0 z-30 transition-opacity duration-300"
-        style={{
-          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(34, 211, 238, 0.08), transparent 80%)`,
-        }}
-      />
+    <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-6 font-mono selection:bg-[#00ffd5] selection:text-black">
+      {/* HEADER */}
+      <header className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-[#222] pb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-widest flex items-center gap-2">
+            <span className="inline-block w-3 h-3 bg-[#00ffd5] rounded-full animate-pulse"></span>
+            DISPATCH.OS
+          </h1>
+          <p className="text-xs text-[#777] tracking-wider mt-1">
+            AUTOMATED OUTREACH, CONSULTING & PROSPECTION PROTOCOL // GMAIL + SUPABASE ENGINE
+          </p>
+        </div>
+        <div className="flex items-center gap-3 bg-[#141414] border border-[#262626] px-4 py-2 rounded-lg text-xs">
+          <span className="text-[#888]">DATABASE:</span>
+          <span className="text-[#00ffd5] font-semibold flex items-center gap-1">
+            SUPABASE POSTGRESQL (CLOUD) ✓
+          </span>
+        </div>
+      </header>
 
-      {/* Ambient Glows */}
-      <div className="absolute top-0 left-1/3 w-[500px] h-[500px] bg-cyan-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse" />
-      <div className="absolute bottom-0 right-1/3 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[150px] pointer-events-none" />
-
-      {/* Futuristic Grid Pattern */}
-      <div
-        className="absolute inset-0 opacity-[0.025] pointer-events-none"
-        style={{
-          backgroundImage: `linear-gradient(to right, #ffffff 1px, transparent 1px), linear-gradient(to bottom, #ffffff 1px, transparent 1px)`,
-          backgroundSize: '40px 40px',
-        }}
-      />
-
-      <div className="max-w-6xl mx-auto w-full space-y-10 relative z-10">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/10 pb-6 gap-4">
+      {/* GRID LAYOUT PRINCIPAL */}
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* COLUMNA [01] MANUAL LAUNCH PARAMETERS */}
+        <section className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col justify-between shadow-2xl relative overflow-hidden">
           <div>
-            <div className="flex items-center gap-3">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
-              </span>
-              <h1 className="text-2xl md:text-3xl font-black tracking-wider uppercase bg-gradient-to-r from-white via-neutral-200 to-neutral-500 bg-clip-text text-transparent">
-                Dispatch<span className="text-cyan-400">.OS</span>
-              </h1>
-            </div>
-            <p className="text-[11px] font-mono text-neutral-500 uppercase tracking-widest mt-1">
-              Automated Outreach Protocol // Gmail + Supabase Engine
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 font-mono text-xs text-neutral-400 bg-white/5 border border-white/10 px-4 py-2 rounded-full backdrop-blur-md">
-            <span className="text-neutral-500">DATABASE:</span>
-            <span className="text-cyan-400 font-bold">SUPABASE CLOUD ✓</span>
-          </div>
-        </header>
-
-        {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Form */}
-          <section className="lg:col-span-7 bg-neutral-900/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 md:p-8 shadow-2xl relative hover:border-cyan-500/30 transition-all duration-500">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-4 bg-cyan-400 rounded-full animate-pulse" />
-                <h2 className="text-xs font-mono font-bold tracking-widest text-neutral-200 uppercase">
-                  [01] Launch Parameters
-                </h2>
-              </div>
-              <span className="text-[10px] font-mono text-cyan-400/80 bg-cyan-950/40 border border-cyan-800/40 px-2.5 py-1 rounded-full uppercase">
-                POST /api/apply
-              </span>
+            <div className="flex justify-between items-center mb-6 border-b border-[#222] pb-3">
+              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[01] MANUAL LAUNCH PARAMETERS</span>
+              <span className="text-[10px] bg-[#1a1a1a] text-[#888] px-2 py-1 rounded border border-[#333]">POST /API/APPLY</span>
             </div>
 
             {statusMessage && (
-              <div
-                className={`p-4 rounded-xl mb-6 text-xs font-mono tracking-wide border flex items-center gap-3 ${
-                  statusMessage.type === 'success'
-                    ? 'bg-emerald-950/50 border-emerald-500/50 text-emerald-300'
-                    : 'bg-rose-950/50 border-rose-500/50 text-rose-300'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${statusMessage.type === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-                {statusMessage.text}
+              <div className="mb-6 p-3 bg-[#0d1f1a] border border-[#00ffd5]/40 text-[#00ffd5] text-xs rounded-lg tracking-wide">
+                ● {statusMessage}
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-5 font-mono">
+            <form onSubmit={(e) => handleDispatch(e)} className="space-y-4">
               <div>
-                <label className="block text-[10px] text-neutral-400 uppercase tracking-widest mb-2">
-                  Template Narrative Profile
-                </label>
+                <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Template Narrative Profile</label>
                 <select
-                  name="templateType"
-                  value={formData.templateType}
-                  onChange={handleChange}
-                  className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-cyan-300 focus:outline-none focus:border-cyan-400"
+                  value={templateType}
+                  onChange={(e) => setTemplateType(e.target.value)}
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
                 >
-                  <option value="product-design">Senior Product Designer (SaaS Focus)</option>
-                  <option value="design-systems">Design Systems & Scalability Specialist</option>
-                  <option value="frontend">UX/UI + Frontend Engineer (Next.js / React)</option>
+                  <option value="design-systems">Senior Product Designer & Design Systems (SaaS Focus)</option>
+                  <option value="frontend">Frontend Engineer (Next.js, React, Tailwind, TypeScript)</option>
+                  <option value="consulting">Consultor de Producto & Arquitectura Digital (Retainer/Project)</option>
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] text-neutral-400 uppercase tracking-widest mb-2">
-                    Company Target <span className="text-cyan-400">*</span>
-                  </label>
+                  <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Company Target *</label>
                   <input
                     type="text"
-                    name="companyName"
                     required
-                    value={formData.companyName}
-                    onChange={handleChange}
-                    placeholder="Stripe"
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-cyan-400"
+                    placeholder="Stripe, Vercel, Banesco..."
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[10px] text-neutral-400 uppercase tracking-widest mb-2">
-                    Target Role <span className="text-cyan-400">*</span>
-                  </label>
+                  <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Target Role *</label>
                   <input
                     type="text"
-                    name="jobTitle"
                     required
-                    value={formData.jobTitle}
-                    onChange={handleChange}
-                    placeholder="Senior Product Designer"
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-cyan-400"
+                    placeholder="Senior Product Designer / Consultor"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] text-neutral-400 uppercase tracking-widest mb-2">
-                  Destination Email <span className="text-cyan-400">*</span>
-                </label>
+                <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Destination Email *</label>
                 <input
                   type="email"
-                  name="recipientEmail"
                   required
-                  value={formData.recipientEmail}
-                  onChange={handleChange}
                   placeholder="careers@company.com"
-                  className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-cyan-400"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] text-neutral-400 uppercase tracking-widest mb-2">
-                    Contact Name
-                  </label>
+                  <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Contact Name</label>
                   <input
                     type="text"
-                    name="contactName"
-                    value={formData.contactName}
-                    onChange={handleChange}
-                    placeholder="Sarah"
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-cyan-400"
+                    placeholder="Sarah o Recruiter"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-[10px] text-neutral-400 uppercase tracking-widest mb-2">
-                    Portfolio Endpoint
-                  </label>
+                  <label className="block text-[10px] text-[#888] uppercase tracking-widest mb-2">Portfolio Endpoint</label>
                   <input
-                    type="url"
-                    name="portfolioUrl"
-                    value={formData.portfolioUrl}
-                    onChange={handleChange}
-                    className="w-full bg-black/60 border border-white/10 rounded-xl px-4 py-3 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-cyan-400"
+                    type="text"
+                    value={portfolioUrl}
+                    onChange={(e) => setPortfolioUrl(e.target.value)}
+                    className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none transition"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                disabled={loading}
-                className="w-full mt-4 bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-400 text-black font-extrabold py-4 rounded-xl text-xs uppercase tracking-widest shadow-[0_0_30px_rgba(34,211,238,0.25)] hover:shadow-[0_0_45px_rgba(34,211,238,0.5)] disabled:opacity-30 flex items-center justify-center gap-2"
+                className="w-full mt-4 bg-[#00ffd5] hover:bg-[#00cca8] text-black font-bold tracking-wider py-3 rounded-lg text-xs transition duration-200 shadow-lg shadow-[#00ffd5]/10 cursor-pointer"
               >
-                {loading ? 'Executing Protocol...' : 'Send Application // Dispatch →'}
+                SEND APPLICATION // DISPATCH →
               </button>
             </form>
+          </div>
 
-            {consoleLogs.length > 0 && (
-              <div className="mt-6 p-4 bg-black/80 border border-cyan-500/30 rounded-xl font-mono text-[11px] space-y-1 text-cyan-400/90 max-h-36 overflow-y-auto">
-                <div className="text-[9px] text-neutral-500 uppercase tracking-wider mb-2 border-b border-white/10 pb-1">
-                  Live Terminal Feed
-                </div>
-                {consoleLogs.map((log, i) => (
-                  <div key={i}>{log}</div>
-                ))}
-              </div>
-            )}
-          </section>
+          {/* TERMINAL FEED */}
+          <div className="mt-6 bg-[#070707] border border-[#222] rounded-lg p-3 h-36 overflow-y-auto text-[11px] font-mono text-[#00ffd5] flex flex-col justify-end">
+            <div className="text-[#555] mb-1">LIVE TERMINAL FEED</div>
+            {terminalLogs.map((log, index) => (
+              <div key={index} className="leading-tight py-0.5">{log}</div>
+            ))}
+          </div>
+        </section>
 
-          {/* History */}
-          <section className="lg:col-span-5 bg-neutral-900/40 border border-white/10 backdrop-blur-2xl rounded-2xl p-6 md:p-8 shadow-2xl flex flex-col hover:border-indigo-500/30 transition-all duration-500">
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center gap-2">
-                <div className="w-1 h-4 bg-indigo-500 rounded-full animate-pulse" />
-                <h2 className="text-xs font-mono font-bold tracking-widest text-neutral-200 uppercase">
-                  [02] Supabase Cloud Log ({history.length})
-                </h2>
-              </div>
-              {history.length > 0 && (
-                <button
-                  onClick={clearHistory}
-                  className="text-[10px] font-mono text-rose-400 hover:text-rose-300 uppercase"
-                >
-                  Purge Logs
-                </button>
-              )}
+        {/* COLUMNA [02] SUPABASE CLOUD LOG & [03] GLOBAL RADAR */}
+        <div className="space-y-8">
+          
+          {/* [03] GLOBAL TALENT & CONSULTING RADAR */}
+          <section className="bg-[#111] border border-[#222] rounded-xl p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-4 border-b border-[#222] pb-3">
+              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">[03] GLOBAL TALENT & CONSULTING RADAR</span>
+              <button 
+                onClick={fetchRadar}
+                className="text-[10px] bg-[#1a1a1a] hover:bg-[#222] text-[#00ffd5] px-3 py-1 rounded border border-[#333] cursor-pointer"
+              >
+                {loadingRadar ? 'SCANNING...' : 'REFRESH RADAR'}
+              </button>
             </div>
+            <p className="text-[11px] text-[#777] mb-4">
+              Búsqueda automatizada (Remoto Global, Latam, España, Inglés A2 / Español) • Todo nivel y contrato.
+            </p>
 
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-              {loadingHistory ? (
-                <div className="text-center py-20">
-                  <p className="text-xs font-mono text-cyan-400 animate-pulse">
-                    SYNCHRONIZING WITH SUPABASE DB...
-                  </p>
-                </div>
-              ) : history.length === 0 ? (
-                <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
-                  <p className="text-xs font-mono text-neutral-600 uppercase tracking-widest">
-                    No Active Transmissions in DB
-                  </p>
-                </div>
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {radarOpportunities.length === 0 ? (
+                <div className="text-center py-6 text-xs text-[#666]">No hay oportunidades cargadas en este momento.</div>
               ) : (
-                history.map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-black/50 border border-white/5 hover:border-cyan-500/40 rounded-xl p-4 transition-all space-y-2"
-                  >
+                radarOpportunities.map((op, idx) => (
+                  <div key={idx} className="bg-[#161616] border border-[#262626] p-3 rounded-lg hover:border-[#00ffd5]/50 transition flex flex-col gap-2">
                     <div className="flex justify-between items-start">
-                      <span className="font-semibold text-white text-sm">
-                        {item.company_name}
-                      </span>
-                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                        DELIVERED
-                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-[#ededed]">{op.companyName}</span>
+                        <div className="text-[11px] text-[#00ffd5]">{op.jobTitle}</div>
+                      </div>
+                      <div className="flex gap-1">
+                        <span className="text-[9px] bg-[#222] text-[#aaa] px-2 py-0.5 rounded uppercase">{op.contractType}</span>
+                        <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded uppercase">{op.languageMode}</span>
+                      </div>
                     </div>
-
-                    <div className="text-xs text-neutral-300 font-mono">{item.job_title}</div>
-
-                    <div className="flex justify-between items-center text-[10px] font-mono text-neutral-500 pt-2 border-t border-white/5">
-                      <span className="truncate max-w-[180px]">{item.recipient_email}</span>
-                      <span>{new Date(item.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <div className="flex justify-between items-center text-[10px] text-[#888] pt-2 border-t border-[#222]">
+                      <span>Duración: {op.duration} | Seniority: {op.seniority}</span>
+                      <button
+                        onClick={() => handleDispatch(undefined, op)}
+                        className="bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-1 rounded transition cursor-pointer"
+                      >
+                        DISPATCH →
+                      </button>
                     </div>
                   </div>
                 ))
               )}
             </div>
           </section>
+
+          {/* [02] SUPABASE CLOUD LOG */}
+          <section className="bg-[#111] border border-[#222] rounded-xl p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-4 border-b border-[#222] pb-3">
+              <span className="text-xs tracking-widest text-[#00ffd5] font-bold">
+                [02] SUPABASE CLOUD LOG ({applications.length})
+              </span>
+              <button
+                onClick={purgeLogs}
+                className="text-[10px] text-[#888] hover:text-[#ff5555] uppercase tracking-wider cursor-pointer"
+              >
+                Purge Logs
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {applications.length === 0 ? (
+                <div className="text-center py-8 text-xs text-[#555] border border-dashed border-[#222] rounded-lg">
+                  NO ACTIVE TRANSMISSIONS IN DB
+                </div>
+              ) : (
+                applications.map((app) => (
+                  <div
+                    key={app.id}
+                    className="bg-[#161616] border border-[#262626] p-3 rounded-lg flex justify-between items-center text-xs"
+                  >
+                    <div>
+                      <div className="font-bold text-[#ededed]">{app.company_name}</div>
+                      <div className="text-[11px] text-[#aaa]">{app.job_title}</div>
+                      <div className="text-[10px] text-[#666] mt-1">{app.recipient_email}</div>
+                    </div>
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <span className="bg-[#0d1f1a] text-[#00ffd5] text-[9px] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20">
+                        DELIVERED
+                      </span>
+                      <span className="text-[10px] text-[#666]">
+                        {new Date(app.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="max-w-6xl mx-auto w-full mt-12 pt-6 border-t border-white/5 flex justify-between items-center text-[10px] font-mono text-neutral-600">
-        <span>UX/UI SYSTEM // OSWALDO HIDALGO</span>
-        <span>DATABASE: SUPABASE POSTGRESQL (CLOUD SYNC)</span>
+      {/* FOOTER */}
+      <footer className="max-w-7xl mx-auto mt-12 border-t border-[#222] pt-4 flex justify-between items-center text-[11px] text-[#555]">
+        <div>UX/UI SYSTEM // OSWALDO HIDALGO</div>
+        <div>DATABASE: SUPABASE POSTGRESQL (CLOUD SYNC)</div>
       </footer>
     </main>
   );
