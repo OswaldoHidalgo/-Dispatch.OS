@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sendApplicationEmail } from '@/lib/gmail';
+import { generateCustomCV } from '@/lib/cvGenerator';
 
 export async function POST(request: Request) {
   try {
@@ -37,7 +38,9 @@ Vi la vacante de ${jobTitle} en ${companyName} y me motivó su enfoque en el des
 
 ${focusText}
 
-Pueden revisar mi trabajo y portafolio interactivo aquí:
+Adjunto a este correo mi CV personalizado y actualizado para esta posición.
+
+Pueden revisar mi portafolio interactivo aquí:
 ${portfolio}
 
 Me encantaría conversar 10 minutos para evaluar cómo puedo sumar valor al equipo.
@@ -48,19 +51,31 @@ Oswaldo Hidalgo
 Senior UX/UI & Product Designer
 `;
 
-    // 1. Enviar correo vía Gmail API
+    // 1. Generar CV en PDF adaptado al vuelo
+    const cvBuffer = await generateCustomCV({
+      jobTitle,
+      companyName,
+      templateType: templateType || 'design-systems',
+    });
+
+    const safeCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, '_');
+    const attachmentFilename = `CV_Oswaldo_Hidalgo_${safeCompanyName}.pdf`;
+
+    // 2. Enviar correo vía Gmail API con el PDF adjunto
     const result = await sendApplicationEmail({
       to: recipientEmail,
       subject,
       bodyText,
+      attachmentBuffer: cvBuffer,
+      attachmentFilename,
     });
 
-    // 2. Insertar directamente en Supabase
+    // 3. Insertar registro en Supabase Cloud DB
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     if (supabaseUrl && supabaseKey) {
-      const dbRes = await fetch(`${supabaseUrl}/rest/v1/applications`, {
+      await fetch(`${supabaseUrl}/rest/v1/applications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,22 +93,18 @@ Senior UX/UI & Product Designer
           status: 'sent',
         }),
       });
-
-      if (!dbRes.ok) {
-        const errorText = await dbRes.text();
-        console.error('Error insertando en Supabase:', errorText);
-      }
     }
 
     return NextResponse.json(
       {
         success: true,
-        message: `Postulación enviada con éxito a ${companyName}`,
+        message: `Postulación y CV adjunto enviados con éxito a ${companyName}`,
         messageId: result.messageId,
       },
       { headers: { 'Content-Type': 'application/json; charset=utf-8' } }
     );
   } catch (error: any) {
+    console.error('Error en /api/apply:', error);
     return NextResponse.json(
       { error: error.message || 'Error interno del servidor' },
       { status: 500, headers: { 'Content-Type': 'application/json; charset=utf-8' } }
