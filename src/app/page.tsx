@@ -32,7 +32,7 @@ export default function Home() {
   const [targetUrl, setTargetUrl] = useState('');
   
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [applications, setApplications]  = useState<Application[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [radarOpportunities, setRadarOpportunities] = useState<Opportunity[]>([]);
   const [loadingRadar, setLoadingRadar] = useState(false);
   const [processingAi, setProcessingAi] = useState(false);
@@ -40,7 +40,7 @@ export default function Home() {
 
   const fetchApplications = async () => {
     try {
-      const res = await fetch('/api/applications');
+      const res = await fetch('/api/applications', { cache: 'no-store' });
       const data = await res.json();
       if (data.applications) setApplications(data.applications);
     } catch (e) {
@@ -51,7 +51,7 @@ export default function Home() {
   const fetchRadar = async () => {
     setLoadingRadar(true);
     try {
-      const res = await fetch('/api/radar/scan');
+      const res = await fetch('/api/radar/scan', { cache: 'no-store' });
       const data = await res.json();
       if (data.opportunities) setRadarOpportunities(data.opportunities);
     } catch (e) {
@@ -66,13 +66,12 @@ export default function Home() {
     fetchRadar();
   }, []);
 
-  // Borrado persistente real en Supabase mediante backend
   const handleClearHistory = async () => {
     try {
       const res = await fetch('/api/applications', { method: 'DELETE' });
       if (res.ok) {
         setApplications([]);
-        setStatusMessage('Historial de enviados limpiado correctamente de la base de datos.');
+        setStatusMessage('Historial limpiado de Supabase correctamente.');
       } else {
         setStatusMessage('Error al limpiar el historial en el servidor.');
       }
@@ -196,14 +195,14 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-3 sm:p-5 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black overflow-x-hidden">
+    <main className="min-h-screen bg-[#0a0a0a] text-[#ededed] p-3 sm:p-5 md:p-8 font-mono selection:bg-[#00ffd5] selection:text-black w-full overflow-x-hidden box-border">
       
-      {/* HEADER RESPONSIVE */}
+      {/* HEADER RESPONSIVE BLINDADO */}
       <header className="max-w-4xl mx-auto mb-5 flex flex-col sm:flex-row justify-between items-stretch sm:items-center border-b border-[#222] pb-4 gap-3">
-        <div>
-          <h1 className="text-base sm:text-xl font-bold tracking-widest flex items-center gap-2 break-all">
+        <div className="min-w-0">
+          <h1 className="text-sm sm:text-xl font-bold tracking-widest flex items-center gap-2 truncate">
             <span className="inline-block w-2.5 h-2.5 bg-[#00ffd5] rounded-full animate-pulse shrink-0"></span>
-            DISPATCH.OS // MOBILE AGENT
+            <span className="truncate">DISPATCH.OS // MOBILE AGENT</span>
           </h1>
           <p className="text-[9px] sm:text-[10px] text-[#777] tracking-wider mt-0.5">GLOBAL PROSPECTION & 1-PAGE CV ADAPTER</p>
         </div>
@@ -213,19 +212,19 @@ export default function Home() {
       </header>
 
       {/* CONTENEDOR PRINCIPAL */}
-      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5">
+      <div className="max-w-4xl mx-auto space-y-4 sm:space-y-5 w-full">
         
         {/* MÉTRICAS */}
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center">
+          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center min-w-0">
             <div className="text-[9px] sm:text-[10px] text-[#777] uppercase truncate">Enviadas</div>
             <div className="text-sm sm:text-lg font-bold text-[#00ffd5] mt-1">{applications.length}</div>
           </div>
-          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center">
+          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center min-w-0">
             <div className="text-[9px] sm:text-[10px] text-[#777] uppercase truncate">Radar Activo</div>
             <div className="text-sm sm:text-lg font-bold text-[#ededed] mt-1">{radarOpportunities.length}</div>
           </div>
-          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center">
+          <div className="bg-[#111] border border-[#222] p-2.5 sm:p-3 rounded-xl text-center min-w-0">
             <div className="text-[9px] sm:text-[10px] text-[#777] uppercase truncate">Match IA</div>
             <div className="text-sm sm:text-lg font-bold text-[#00ffd5] mt-1">98%</div>
           </div>
@@ -239,7 +238,7 @@ export default function Home() {
               placeholder="Pega la URL de la oferta..."
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
-              className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none truncate"
+              className="w-full bg-[#161616] border border-[#2a2a2a] rounded-lg px-3 py-2.5 text-xs text-[#ededed] focus:border-[#00ffd5] outline-none min-w-0"
             />
             <button
               type="submit"
@@ -273,7 +272,7 @@ export default function Home() {
         </div>
 
         {statusMessage && (
-          <div className="p-3 bg-[#0d1f1a] border border-[#00ffd5]/40 text-[#00ffd5] text-xs rounded-lg break-all">
+          <div className="p-3 bg-[#0d1f1a] border border-[#00ffd5]/40 text-[#00ffd5] text-xs rounded-lg break-words">
             ● {statusMessage}
           </div>
         )}
@@ -299,7 +298,7 @@ export default function Home() {
                     setLoadingRadar(false);
                   }
                 }} 
-                className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-2 sm:py-1 rounded transition cursor-pointer text-center"
+                className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-3 py-2 sm:py-1 rounded transition cursor-pointer text-center shrink-0"
               >
                 {loadingRadar ? 'Sincronizando...' : '⚡ Sincronización Masiva'}
               </button>
@@ -310,10 +309,10 @@ export default function Home() {
               </div>
             ) : (
               radarOpportunities.map((op, idx) => (
-                <div key={idx} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition">
-                  <div className="w-full sm:w-3/4 overflow-hidden">
+                <div key={idx} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition min-w-0">
+                  <div className="w-full sm:w-3/4 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-bold text-[#ededed] truncate max-w-[200px] sm:max-w-xs">{op.companyName}</span>
+                      <span className="text-xs font-bold text-[#ededed] truncate">{op.companyName}</span>
                       <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20 shrink-0">
                         Match: {op.matchScore}%
                       </span>
@@ -423,7 +422,7 @@ export default function Home() {
               {applications.length > 0 && (
                 <button
                   onClick={handleClearHistory}
-                  className="w-full sm:w-auto bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-black font-bold px-3 py-2 sm:py-1 rounded transition cursor-pointer border border-red-500/20 text-[10px] text-center"
+                  className="w-full sm:w-auto bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-black font-bold px-3 py-2 sm:py-1 rounded transition cursor-pointer border border-red-500/20 text-[10px] text-center shrink-0"
                 >
                   Limpiar Historial ✕
                 </button>
@@ -435,8 +434,8 @@ export default function Home() {
               </div>
             ) : (
               applications.map((app) => (
-                <div key={app.id} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div className="w-full sm:w-3/4 overflow-hidden">
+                <div key={app.id} className="bg-[#111] border border-[#222] p-3.5 sm:p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 min-w-0">
+                  <div className="w-full sm:w-3/4 min-w-0">
                     <div className="font-bold text-[#ededed] truncate">{app.company_name}</div>
                     <div className="text-xs text-[#00ffd5] mt-0.5 break-words">{app.job_title}</div>
                     <div className="text-[10px] text-[#777] mt-1 truncate">{app.recipient_email}</div>

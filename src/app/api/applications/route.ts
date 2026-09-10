@@ -33,11 +33,13 @@ export async function DELETE() {
       return NextResponse.json({ success: true });
     }
 
-    await fetch(`${supabaseUrl}/rest/v1/applications?id=gt.0`, {
+    // Eliminación explícita de todos los registros en Supabase
+    await fetch(`${supabaseUrl}/rest/v1/applications?id=not.is.null`, {
       method: 'DELETE',
       headers: {
         apikey: supabaseKey,
         Authorization: `Bearer ${supabaseKey}`,
+        Prefer: 'return=representation'
       },
     });
 
