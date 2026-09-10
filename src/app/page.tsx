@@ -28,7 +28,8 @@ export default function Home() {
   const [jobTitle, setJobTitle] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [contactName, setContactName] = useState('');
-  const [portfolioUrl, setPortfolioUrl] = useState('https://oswaldohidalgo.com');
+  // Portafolio actualizado con tu enlace de Behance
+  const [portfolioUrl, setPortfolioUrl] = useState('https://www.behance.net/oswaldohidalgo');
   const [targetUrl, setTargetUrl] = useState('');
   
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -65,6 +66,12 @@ export default function Home() {
     fetchApplications();
     fetchRadar();
   }, []);
+
+  // Función para limpiar el historial localmente o via backend si posees la ruta
+  const handleClearHistory = () => {
+    setApplications([]);
+    setStatusMessage('Historial de enviados limpiado con éxito.');
+  };
 
   const handleAiAutoFill = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,26 +295,32 @@ export default function Home() {
                 {loadingRadar ? 'Sincronizando...' : '⚡ Sincronización Masiva'}
               </button>
             </div>
-            {radarOpportunities.map((op, idx) => (
-              <div key={idx} className="bg-[#111] border border-[#222] p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-[#ededed]">{op.companyName}</span>
-                    <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20">
-                      Match: {op.matchScore}%
-                    </span>
-                  </div>
-                  <div className="text-xs text-[#00ffd5] mt-1">{op.jobTitle}</div>
-                  <div className="text-[10px] text-[#777] mt-1">Modalidad: {op.contractType}</div>
-                </div>
-                <button
-                  onClick={() => handleSelectOpportunity(op)}
-                  className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer text-center"
-                >
-                  Seleccionar →
-                </button>
+            {radarOpportunities.length === 0 ? (
+              <div className="text-center py-8 text-xs text-[#555] border border-dashed border-[#222] rounded-xl">
+                No hay resultados disponibles en este momento.
               </div>
-            ))}
+            ) : (
+              radarOpportunities.map((op, idx) => (
+                <div key={idx} className="bg-[#111] border border-[#222] p-4 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:border-[#00ffd5]/40 transition">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-[#ededed]">{op.companyName}</span>
+                      <span className="text-[9px] bg-[#0d1f1a] text-[#00ffd5] px-2 py-0.5 rounded font-bold border border-[#00ffd5]/20">
+                        Match: {op.matchScore}%
+                      </span>
+                    </div>
+                    <div className="text-xs text-[#00ffd5] mt-1">{op.jobTitle}</div>
+                    <div className="text-[10px] text-[#777] mt-1">Modalidad: {op.contractType}</div>
+                  </div>
+                  <button
+                    onClick={() => handleSelectOpportunity(op)}
+                    className="w-full sm:w-auto bg-[#00ffd5]/10 hover:bg-[#00ffd5] text-[#00ffd5] hover:text-black font-bold px-4 py-2.5 rounded-lg text-xs transition cursor-pointer text-center"
+                  >
+                    Seleccionar →
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -374,7 +387,7 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-[#888] uppercase mb-1">Portafolio</label>
+                <label className="block text-[10px] text-[#888] uppercase mb-1">Portafolio (Behance)</label>
                 <input
                   type="text"
                   value={portfolioUrl}
@@ -396,7 +409,17 @@ export default function Home() {
         {/* VISTA 3: HISTORIAL & FOLLOW-UPS */}
         {activeTab === 'logs' && (
           <div className="space-y-3">
-            <div className="text-xs text-[#777] mb-1">Historial de envíos y automatización de seguimiento:</div>
+            <div className="flex justify-between items-center text-xs text-[#777] mb-1">
+              <span>Historial de envíos y automatización de seguimiento:</span>
+              {applications.length > 0 && (
+                <button
+                  onClick={handleClearHistory}
+                  className="bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-black font-bold px-3 py-1 rounded transition cursor-pointer border border-red-500/20 text-[10px]"
+                >
+                  Limpiar Historial ✕
+                </button>
+              )}
+            </div>
             {applications.length === 0 ? (
               <div className="text-center py-8 text-xs text-[#555] border border-dashed border-[#222] rounded-xl">
                 No hay transmisiones registradas en Supabase.
